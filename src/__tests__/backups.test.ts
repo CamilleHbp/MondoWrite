@@ -116,6 +116,37 @@ afterEach(() => {
 });
 
 describe("sauvegarder et rouvrir", () => {
+  it("reopens both novels from a series backup and its project ZIP", async () => {
+    const { startSeries } = await import("../novelSeries");
+    const { bookOrder } = await import("../book");
+    vi.spyOn(storage, "pickFile").mockResolvedValueOnce({ name: "phare.zip", data: archive() });
+    await state().importFile();
+    const first = state().addTitledCard("scene", "One");
+    state().setManuscriptText(first, "<p>North</p>");
+    state().changeNovelPlan(plan => {
+      const converted = startSeries(plan, "Cycle", "One", "one");
+      converted.series!.books.push({ id: "two", title: "Two", scenes: [] });
+      return converted;
+    });
+    state().selectVolume("two");
+    const second = state().addTitledCard("scene", "Two");
+    state().setManuscriptText(second, "<p>South</p>");
+    await state().save();
+    const key = backupKey("phare");
+    const fake = fakeBackups(key);
+    (storage as { backups?: BackupStore }).backups = fake.store;
+    expect(await state().backupNow()).toBe(true);
+    const [name, data] = [...fake.zips][0];
+    expect(await state().openBackup(key, name)).toBe(true);
+    expect(bookOrder(state().nodes, state().plan)).toEqual([second]);
+    state().selectVolume("one");
+    expect(bookOrder(state().nodes, state().plan)).toEqual([first]);
+    vi.spyOn(storage, "pickFile").mockResolvedValueOnce({ name: "series.zip", data });
+    await state().importFile();
+    expect(state().plan.series?.active).toBe("two");
+    expect(state().manuscript[first]).toContain("North");
+    expect(state().manuscript[second]).toContain("South");
+  });
   it("une sauvegarde hors du projet s'ouvre comme un nouveau projet, images comprises", async () => {
     vi.spyOn(storage, "pickFile").mockResolvedValueOnce({ name: "phare.zip", data: archive() });
     await state().importFile();

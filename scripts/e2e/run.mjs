@@ -227,6 +227,29 @@ function helpers(page, base) {
 
 const scenarios = [
   {
+    name: "romans en série : changer de tome et retrouver le manuscrit",
+    async run(h) {
+      const { page } = h;
+      await h.example();
+      await h.view(2);
+      const count = await page.locator(".plan-scene").count();
+      assert(count > 0, "scènes du premier tome");
+      await page.locator("summary").filter({hasText: "Transformer en série"}).click();
+      await page.getByLabel("Titre de la série", {exact: true}).fill("Cycle");
+      await page.getByRole("button", {name: "Transformer en série", exact: true}).click();
+      await page.getByRole("textbox", {name: "Ajouter un tome"}).fill("Suite");
+      await page.getByRole("button", {name: "Ajouter un tome"}).click();
+      await until(async () => await page.locator(".plan-scene").count() === 0, "le deuxième tome contient des scènes du premier");
+      await h.saved(f => JSON.parse(f["cosmos.json"] ?? "{}").plan?.series?.books.length === 2, "série absente de la sauvegarde");
+      await h.reloadAndOpen();
+      await h.view(2);
+      await page.getByRole("combobox", {name: "Tome", exact: true}).selectOption({index: 0});
+      await until(async () => await page.locator(".plan-scene").count() === count, "scènes absentes après relecture");
+      await page.setViewportSize({width: 390, height: 844});
+      assert(await page.getByRole("combobox", {name: "Tome", exact: true}).isVisible(), "tomes inaccessibles sur téléphone");
+    },
+  },
+  {
     name: "canevas : carte créée par N, devenue Personnage, retrouvée après rechargement",
     async run(h) {
       const { page } = h;

@@ -3,6 +3,7 @@
 import type { Messages } from "./fr";
 
 export const en: Messages = {
+  volumes: {open: "Open", remove: "Remove milestone", move: "Move to book", choice: "Linked scenes", "first": "Book 1", "series": "Book series", "arc": "Series outline", "book": "Book", "convert": "Turn into a series", "add": "Add book", "title": "Book title", "name": "Series title", "milestone": "Milestone", "notes": "Notes", "link": "Link to a book or scene", "earlier": "Earlier", "later": "Later"},
   meta: { name: "English" },
 
   app: {

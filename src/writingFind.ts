@@ -3,6 +3,7 @@
 // qui avancent sans rouvrir la recherche. La liste de Search.tsx et ces touches lisent les mêmes passages.
 
 import { useCosmos, SCENE_AT, type CosmosState } from "./store";
+import { switchBook } from "./novelSeries";
 import { bookOrder } from "./book";
 import { htmlParagraphs } from "./cardText";
 import { chapterNumbers, chapterOf } from "./plan";
@@ -35,6 +36,15 @@ export function writingUnits(st: Pick<CosmosState, "kind" | "screenplay" | "node
       if (isEditableType(el.type) && el.text.trim()) unit.texts.push(el.text);
     });
     return out;
+  }
+  if (st.plan.series) {
+    const ids = st.nodes.filter(n => n.data.type === "scene").map(n => n.id);
+    return st.plan.series.books.flatMap(b => {
+      const local = switchBook(st.plan, b.id, ids);
+      const keep = new Set(bookOrder(st.nodes, local));
+      return writingUnits({ ...st, nodes: st.nodes.filter(n => keep.has(n.id)), plan: { ...local, series: undefined } })
+        .map(unit => ({ ...unit, context: [b.title, unit.context].filter(Boolean).join(" · ") }));
+    });
   }
   const order = bookOrder(st.nodes, st.plan);
   const numbers = chapterNumbers(st.plan, order);

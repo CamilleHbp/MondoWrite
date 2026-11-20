@@ -1,3 +1,4 @@
+import { volumeTitle } from "../novelSeries";
 // Documents du projet ouvert (manuscrit, bible, canevas), prêts pour un export ou pour les copies Markdown du
 // dossier projet. Une seule façon de les fabriquer : le menu Exporter et les copies lisent la même chose.
 
@@ -48,7 +49,7 @@ export function manuscriptOf(s: ProjectDocSource, ctx: DocContext, contact: stri
   const cards = s.nodes.map((n) => n.data);
   const order = bookOrder(s.nodes, s.plan);
   const numbers = chapterNumbers(s.plan, order);
-  return manuscriptDoc({ ...info(s, ctx), ...(contact.length > 0 ? { contact } : {}) }, order, cards, s.manuscript, t.manuscript.untitled, (id) => {
+  return manuscriptDoc({ ...info(s, ctx), title: volumeTitle(s).trim() || t.home.untitled, ...(contact.length > 0 ? { contact } : {}) }, order, cards, s.manuscript, t.manuscript.untitled, (id) => {
     // Page du livre (dédicace, prologue…) : un chapitre à elle seule, sous son nom.
     const page = cards.find((c) => c.id === id)?.page;
     if (isPageKind(page)) return { id: `page:${id}`, title: t.book.kinds[page] };
@@ -107,7 +108,7 @@ export function bookOf(s: ProjectDocSource, ctx: DocContext, year: number): Book
       sections.push({ kind: "chapter", label: "", title, toc: title, blocks });
     }
   }
-  return { ...info(s, ctx), year, sections: numberFootnotes(sections.map(({ key: _key, ...rest }) => rest as BookSection)) };
+  return { ...info(s, ctx), title: volumeTitle(s).trim() || t.home.untitled, year, sections: numberFootnotes(sections.map(({ key: _key, ...rest }) => rest as BookSection)) };
 }
 
 /** Libellés des valeurs écrites dans les fiches (type d'arc, statut, champs à choix), par valeur. */

@@ -25,6 +25,8 @@ export const dayKey = (date: Date) =>
  * Les copies du projet : nom de fichier → texte. Un scénario n'a pas de manuscrit.md (scenario.fountain se
  * lit déjà d'un seul tenant) ; un fichier sans contenu n'est pas écrit.
  */
+import { switchBook } from "./novelSeries";
+
 export function buildCopies(s: ProjectDocSource, ctx: { t: Messages; lang: string; author: string }, sections: CardType[]): Partial<Record<CopyName, string>> {
   const bible = bibleOf(s, ctx, sections);
   const canvas = s.nodes.length > 0 ? canvasOf(s, ctx) : null;
@@ -41,6 +43,13 @@ export function buildCopies(s: ProjectDocSource, ctx: { t: Messages; lang: strin
   const write = (doc: ExportDoc, name: CopyName) => toMarkdown(doc, { media: "../medias/", link: link(name), note: ctx.t.copies.note });
   const out: Partial<Record<CopyName, string>> = {};
   if (manuscript && manuscript.chapters.length > 0) out["manuscrit.md"] = write(manuscript, "manuscrit.md");
+  if (s.plan.series) {
+    const ids = s.nodes.filter(n => n.data.type === "scene").map(n => n.id);
+    out["manuscrit.md"] = s.plan.series.books.map(book => {
+      const doc = manuscriptOf({ ...s, plan: switchBook(s.plan, book.id, ids) }, ctx);
+      return write(doc, "manuscrit.md");
+    }).join("\n\n");
+  }
   if (bible.chapters.length > 0) out["bible.md"] = write(bible, "bible.md");
   if (canvas && canvas.chapters.length > 0) out["canevas.md"] = write(canvas, "canevas.md");
   return out;

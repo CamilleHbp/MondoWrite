@@ -65,7 +65,7 @@ interface Exit {
 }
 
 /** Sorties de chaque scène : ses choix et ses renvois. */
-function exitsOf(scenes: readonly SceneRef[], manuscript: Readonly<Record<string, string>>): Map<string, Exit[]> {
+export function exitsOf(scenes: readonly SceneRef[], manuscript: Readonly<Record<string, string>>): Map<string, Exit[]> {
   const slugs = sceneSlugs(scenes);
   const out = new Map<string, Exit[]>();
   for (const s of scenes) {

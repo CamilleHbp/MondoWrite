@@ -129,6 +129,7 @@ export interface Frame {
   season?: string;
   /** Série (posé par « Organiser ») : épisode que ce cadre représente ; y déposer une scène l'y range. */
   episode?: string;
+  book?: string;
 }
 
 /** Fil entre deux cartes, avec une étiquette libre ("soupçonne", "se passe à"…). */

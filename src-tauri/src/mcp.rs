@@ -413,6 +413,12 @@ impl Server {
     let (_, v) = self.project(args)?;
     let p = &v["project"];
     let mut out = format!("# {}\n\n{}", str_of(p, "/title"), str_of(p, "/kindLabel"));
+    if let Some(books) = p["books"].as_array() {
+      for book in books {
+        let active = if book["id"] == p["activeBook"] { " (active)" } else { "" };
+        out.push_str(&format!("\n- {} [{}]{}", str_of(book, "/title"), str_of(book, "/id"), active));
+      }
+    }
     let interactive = p.get("interactive").and_then(Value::as_bool) == Some(true);
     if interactive {
       // En tête, pour qu'un assistant ne le prenne pas pour un roman ordinaire (retours du « Puits », novembre 2026).
@@ -1109,6 +1115,11 @@ impl Server {
     ]);
     if let (Some(list), Value::Array(extra)) = (tools.as_array_mut(), more) {
       list.extend(extra);
+      for tool in list {
+        if WRITE_TOOLS.contains(&tool["name"].as_str().unwrap_or("")) {
+          tool["inputSchema"]["properties"]["book"] = json!({"type": "string", "description": "For novel series, supply the active book ID from project_overview."});
+        }
+      }
     }
     if let (Some(list), Value::Array(extra)) = (tools.as_array_mut(), images) {
       list.extend(extra);

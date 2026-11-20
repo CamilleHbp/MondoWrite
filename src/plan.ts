@@ -199,7 +199,10 @@ export interface Chapter {
   scenes: string[];
 }
 
+import { outsideBook, readSeries, type NovelSeries } from "./novelSeries";
+
 export interface Plan {
+  series?: NovelSeries;
   template: PlanTemplate;
   /** Scènes de chaque case, dans l'ordre. Peut contenir les cases d'autres gabarits. */
   beats: Record<string, string[]>;
@@ -265,8 +268,9 @@ export function readPlan(raw: unknown): Plan {
   const custom = readCustom((raw as { custom?: unknown }).custom);
   // Un gabarit de l'auteur sans cases relues redevient libre.
   const kind = isPlanTemplate(template) && (template !== "perso" || custom) ? template : "libre";
+  const series = readSeries((raw as Plan).series);
   const scriptBeats = readScriptBeats((raw as { scriptBeats?: unknown }).scriptBeats);
-  const next: Plan = { template: kind, beats: clean, ...(chapters.length > 0 ? { chapters } : {}), ...(custom ? { custom } : {}), ...(scriptBeats ? { scriptBeats } : {}) };
+  const next: Plan = { ...(series ? { series } : {}), template: kind, beats: clean, ...(chapters.length > 0 ? { chapters } : {}), ...(custom ? { custom } : {}), ...(scriptBeats ? { scriptBeats } : {}) };
   return isEmptyPlan(next) ? EMPTY_PLAN : next;
 }
 
@@ -289,7 +293,7 @@ function readChapters(raw: unknown): Chapter[] {
 
 /** Rien à écrire dans le fichier : gabarit par défaut, aucune scène rangée, aucun chapitre. */
 export const isEmptyPlan = (plan: Plan) =>
-  plan.template === "libre" && Object.values(plan.beats).every((ids) => ids.length === 0) && (plan.chapters ?? []).length === 0 && !plan.custom && !plan.scriptBeats;
+  !plan.series && plan.template === "libre" && Object.values(plan.beats).every((ids) => ids.length === 0) && (plan.chapters ?? []).length === 0 && !plan.custom && !plan.scriptBeats;
 
 /**
  * Plan à écrire : sans les cartes qui n'existent plus, ni les cases vides, ni les chapitres vides et
@@ -334,6 +338,10 @@ export interface Arranged {
  * scène n'apparaît pas. Plan libre : une seule liste, où les scènes pas encore rangées viennent à la suite.
  */
 export function arrange(plan: Plan, sceneIds: string[]): Arranged {
+  if (plan.series) {
+    const outside = outsideBook(plan);
+    sceneIds = sceneIds.filter(id => !outside.has(id));
+  }
   const scenes = new Set(sceneIds);
   const seen = new Set<string>();
   const beats = templateBeats(plan.template, plan.custom).map((key) => ({
@@ -388,7 +396,7 @@ function followChapter(before: Plan, after: Plan, sceneIds: string[], id: string
 }
 
 function placeInBeat(plan: Plan, sceneIds: string[], id: string, beat: string | null, index?: number): Plan {
-  if (!sceneIds.includes(id)) return plan;
+  if (!sceneIds.includes(id) || (plan.series && outsideBook(plan).has(id))) return plan;
   const current = arrange(plan, sceneIds);
   if (beat !== null && !current.beats.some((b) => b.key === beat)) return plan;
   // Plan libre : pas de « à placer », toutes les scènes sont dans la liste.

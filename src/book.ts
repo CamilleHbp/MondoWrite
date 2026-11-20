@@ -6,6 +6,7 @@
 // Elle n'entre ni dans le Plan ni dans un chapitre ; son texte vit dans manuscrit/<id>.md comme une scène.
 // Les clés sont écrites dans le fichier : ne jamais les renommer ni les traduire.
 
+import { outsideBook } from "./novelSeries";
 import type { CardData } from "./types";
 import { planOrder, type Plan } from "./plan";
 
@@ -35,7 +36,8 @@ export const storyScenes = (nodes: Positioned[]): string[] =>
 
 /** Tout le livre, dans l'ordre de lecture : pages de début, récit (ordre du Plan), pages de fin. */
 export function bookOrder(nodes: Positioned[], plan: Plan): string[] {
-  const pages = nodes.filter((n) => n.data.type === "scene" && isPageKind(n.data.page));
+  const outside = outsideBook(plan);
+  const pages = nodes.filter(n => !outside.has(n.id)).filter((n) => n.data.type === "scene" && isPageKind(n.data.page));
   const rank = (n: Positioned) => PAGE_KINDS.indexOf(n.data.page as PageKind);
   const sorted = [...pages].sort((a, b) => rank(a) - rank(b) || a.position.y - b.position.y || a.position.x - b.position.x);
   return [

@@ -1,3 +1,5 @@
+import { volumeTitle } from "../novelSeries";
+import { volumeTexts } from "../novelSeries";
 // Bouton « Exporter » : le scénario (PDF au format standard, Fountain, Final Draft) ou le manuscrit
 // d'un roman (PDF, Word, EPUB, Markdown), la bible du projet dans les deux cas, et le canevas (PNG, PDF
 // standard ou grand format, Word, Markdown).
@@ -145,7 +147,7 @@ export function ExportMenu() {
     if (base.chapters.length === 0) return null;
     // Format Shunn pour le PDF : « Nom / TITRE / page » en tête, nombre de mots arrondi, « par Untel ».
     const { lang, profile } = useSettings.getState();
-    const shunned = format === "pdf" ? withShunn(base, useCosmos.getState().manuscript, all, lang, authorName(profile)) : base;
+    const shunned = format === "pdf" ? withShunn(base, volumeTexts(useCosmos.getState().plan, useCosmos.getState().manuscript), all, lang, authorName(profile)) : base;
     // Images dans le texte des scènes (#87) : lues dans medias/ ; le Markdown les cite seulement.
     const doc = format === "md" ? shunned : await (await import("../export/images")).withImages(shunned, (n) => storage.mediaUrl(n));
     return exportDocument(doc, format, { name: doc.title, paper: useCosmos.getState().paper, contents: x.contents });
@@ -191,14 +193,14 @@ export function ExportMenu() {
     const scenes = interactiveScenes(nodes, plan);
     if (scenes.length === 0) return null;
     const ink = projectToInk(scenes, interactiveSlugs(nodes, plan), manuscript, readFactLabels(metaKeep), all.interactive.map.defaultLabel).ink;
-    return { name: `${fileName(info().title, "mondowrite")}.ink`, extension: "ink", mime: "text/plain", data: new TextEncoder().encode(ink) };
+    return { name: `${fileName(volumeTitle(useCosmos.getState()), "mondowrite")}.ink`, extension: "ink", mime: "text/plain", data: new TextEncoder().encode(ink) };
   };
   const inkItem = { key: "ms-ink", label: all.interactive.play.exportInk, build: inkFile };
   // Lot 7 : une page web autonome où l'histoire se lit et se joue.
   const webFile = async (): Promise<ExportedFile | null> => {
     const { storyWebFile, StoryCompileError } = await import("../interactive/webExport");
     try {
-      return await storyWebFile(info().title, info().author);
+      return await storyWebFile(volumeTitle(useCosmos.getState()), info().author);
     } catch (err) {
       if (err instanceof StoryCompileError) {
         setMessage(all.interactive.web.compileFailed);
@@ -213,7 +215,7 @@ export function ExportMenu() {
   const gamebookItems = (["epub"] as const).map((f) => ({
     key: `ms-gamebook-${f}`,
     label: all.interactive.gamebook[f],
-    build: async () => (await import("../interactive/gamebookExport")).gamebookFile(f, info().title, info().author),
+    build: async () => (await import("../interactive/gamebookExport")).gamebookFile(f, volumeTitle(useCosmos.getState()), info().author),
   }));
 
   type Group = { title: string; empty?: string; items: { key: string; label: string; build?: () => Promise<ExportedFile | null>; open?: () => void }[] };
