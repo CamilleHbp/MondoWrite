@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useId, useState } from "react";
 import type { AiProvider } from "../ai/providers";
+import { planModels } from "../ai/chatgpt";
 import { requestsToday } from "../ai/usage";
 import { fmt, useT } from "../i18n";
 import { openExternal } from "../platform";
@@ -27,6 +28,11 @@ export function ProviderUsage({ provider, menuCard = false }: { provider: AiProv
     };
     setWindows([]);
     update();
+    if (menuCard && provider === "chatgpt") {
+      // The account catalogue is a read-only request. The native client captures
+      // any quota headers before returning, so reopening never consumes inference.
+      void planModels().then(() => { if (active) update(); }).catch(() => {});
+    }
     const timer = window.setInterval(update, 60000);
     window.addEventListener("mondowrite-usage", update);
     window.addEventListener("storage", update);
@@ -38,7 +44,7 @@ export function ProviderUsage({ provider, menuCard = false }: { provider: AiProv
       window.removeEventListener("storage", update);
       window.removeEventListener("focus", update);
     };
-  }, [provider]);
+  }, [provider, menuCard]);
   const current = provider === "chatgpt" ? windows.filter((w) => !w.reset || w.reset * 1000 > now.getTime()) : [];
   const midnight = new Date(now);
   midnight.setHours(24, 0, 0, 0);
