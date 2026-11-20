@@ -10,7 +10,6 @@ import { AtelierBadge } from "./Atelier";
 import { Search } from "./Search";
 import { TodoPanel } from "./TodoPanel";
 import { useTopbarFit } from "./useTopbarFit";
-import { ProviderUsage } from "./ProviderUsage";
 import { useSettings } from "../settings";
 import { shownView, usePhone } from "./usePhone";
 
@@ -37,7 +36,6 @@ const PHONE_ICONS: Partial<Record<View, React.ReactNode>> = {
 
 export function TopBar() {
   const { t, views, kind } = useVocab();
-  const provider = useSettings((s) => s.ai.provider);
   const lang = useSettings((s) => s.lang);
   // Un sélecteur par champ (valeurs simples ou fonctions stables) : la barre ne se redessine plus à chaque frappe.
   const view = useCosmos((s) => s.view);
@@ -155,7 +153,6 @@ export function TopBar() {
           <AssistantBadge />
           <AtelierBadge />
           <AiMenu />
-          {provider && <div className="toolbar-usage"><ProviderUsage provider={provider} /></div>}
           <ExportMenu />
         </div>
         <div className="tb-group">

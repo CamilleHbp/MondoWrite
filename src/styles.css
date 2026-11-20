@@ -474,10 +474,21 @@ html[data-platform="mac"] .topbar :is(input, textarea) { -webkit-user-select: te
 .usage-detail { padding-block: 4px; }
 .usage-detail button { display: block; }
 
-.toolbar-usage { position: relative; }
-.toolbar-usage .usage-toggle { white-space: nowrap; }
-.toolbar-usage .usage-detail {
-  position: absolute; top: 100%; right: 0; z-index: 100;
-  width: max-content; max-width: min(280px, 80vw); padding: 10px 14px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+.toolbar-usage { position: absolute; top: -7px; right: -4px; z-index: 2; }
+.toolbar-usage:focus-within, .toolbar-usage:hover { z-index: 5; }
+.toolbar-usage .provider-usage > button {
+  display: flex; align-items: center; gap: 3px; min-width: 21px; height: 16px;
+  justify-content: center; padding: 0 4px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); border-radius: 5px;
+  font-size: 10px; font-weight: 650; font-variant-numeric: tabular-nums;
 }
+.toolbar-usage .usage-detail {
+  position: absolute; top: 100%; right: 0; width: min(236px, 80vw);
+  margin: 0; box-sizing: border-box; padding: 14px; text-align: start;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+}
+.usage-detail:not([hidden]) { display: grid; gap: 8px; }
+.usage-detail strong, .usage-window b { color: var(--ink); }
+.usage-detail .usage-toggle { display: flex; align-items: center; gap: 5px; justify-self: start; color: var(--ink); }
+.usage-window { display: grid; gap: 4px; }
+.usage-window progress { width: 100%; height: 5px; accent-color: var(--ink); }
