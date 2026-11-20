@@ -465,3 +465,9 @@ html[data-platform="mac"] .topbar :is(input, textarea) { -webkit-user-select: te
 .loading-bar.is-indeterminate > span { width: 35%; animation: loading-slide 1.2s ease-in-out infinite; }
 @keyframes loading-spin { to { transform: rotate(360deg); } }
 @keyframes loading-slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+.novel-volumes { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; margin-block: .6rem; }
+.novel-volumes select, .novel-volumes input, .novel-volumes textarea { max-width: 100%; font: inherit; color: inherit; background: var(--surface); }
+.novel-arc { flex-basis: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: .7rem; padding-block: .7rem; }
+.novel-arc section, .novel-arc form { flex-basis: 100%; }
+.novel-arc section > div { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block: .5rem; }

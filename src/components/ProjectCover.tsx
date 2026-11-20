@@ -1,3 +1,4 @@
+import { volumeTitle } from "../novelSeries";
 // Couverture du projet, en tête de la Bible : comme une quatrième de couverture. À gauche, la jaquette
 // (titre, tagline, auteur, pastilles) ; à droite, logline, résumé, comparables, volume, thèmes et note
 // d'intention. Rien n'est obligatoire : une pastille vide est un simple « + Genre », un texte vide garde
@@ -310,8 +311,12 @@ const INTENTION_PAGE = 450;
 export function ProjectCover({ onOpenTheme, onAddTheme }: { onOpenTheme: (id: string) => void; onAddTheme: () => void }) {
   const { t, kind, types } = useVocab();
   const p = t.pitch;
-  const title = useCosmos((s) => s.title);
-  const setTitle = useCosmos((s) => s.setTitle);
+  const title = useCosmos(volumeTitle);
+  const setTitle = (title: string) => {
+    const s = useCosmos.getState();
+    if (!s.plan.series) return s.setTitle(title);
+    s.changeNovelPlan(p => p.series ? { ...p, series: { ...p.series, books: p.series.books.map(b => b.id === p.series!.active ? { ...b, title } : b) } } : p);
+  };
   const pitch = useCosmos((s) => s.pitch);
   const nodes = useCosmos((s) => s.nodes);
   const author = useSettings((s) => s.author);

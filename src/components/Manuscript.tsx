@@ -1,3 +1,5 @@
+import { volumeTexts } from "../novelSeries";
+import { Volumes } from "./Volumes";
 // Manuscrit (vue Manuscrit d'un projet roman) : on écrit une scène à la fois, dans l'ordre du Plan.
 // À gauche les scènes, regroupées par chapitre, et leur nombre de mots ; au centre le texte, mis en
 // pages comme un livre (la numérotation continue d'une scène à l'autre) ; à droite les statistiques
@@ -156,7 +158,7 @@ export function Manuscript() {
   // Tout le livre : pages de début, récit dans l'ordre du Plan, pages de fin.
   const order = useMemo(() => bookOrder(nodes, plan), [nodes, plan]);
   const trash = useCosmos((s) => s.trash);
-  const orphans = useMemo(() => orphanTexts(manuscript, order, trash.map((c) => c.id)), [manuscript, order, trash]);
+  const orphans = useMemo(() => orphanTexts(volumeTexts(plan, manuscript), order, trash.map((c) => c.id)), [manuscript, order, trash, plan]);
   // Point de vue (1.13.0) : « Ses scènes en point de vue » ne garde dans le volet que les scènes d'un narrateur
   // (les autres repliées en une ligne) et les flèches passent de l'une à l'autre. État d'affichage, rien d'écrit.
   const narrators = useMemo(() => {
@@ -413,7 +415,7 @@ export function Manuscript() {
   if (!current || !card) {
     return (
       <div className="empty-view ms-empty">
-        <h1>{m.empty}</h1>
+        <Volumes /><h1>{m.empty}</h1>
         <p>{m.emptyBody}</p>
         <form
           onSubmit={(e) => {
@@ -622,7 +624,7 @@ export function Manuscript() {
       {focusMode && <FocusBar />}
       {focusMode && <FocusCounter text={words(sceneWords)} words={stats.words} num={num} />}
       <nav className="sp-scenes ms-scenes" aria-label={m.scenesAria}>
-        <h2 className="sp-box-title">{m.scenesTitle}</h2>
+        <Volumes /><h2 className="sp-box-title">{m.scenesTitle}</h2>
         <p className="ms-total">{words(stats.words)}</p>
         <p className="ms-drag-hint">{m.sceneHint}</p>
         {narrators.length > 0 && (

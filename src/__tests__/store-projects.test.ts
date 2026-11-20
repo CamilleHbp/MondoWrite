@@ -60,6 +60,39 @@ describe("au lancement", () => {
 });
 
 describe("créer", () => {
+  it("keeps interactive books, word goals and choice targets independent", async () => {
+    const { interactiveScenes } = await import("../interactive/scenes");
+    const { projectSections } = await import("../interactive/projectSections");
+    const { projectToInk } = await import("../interactive/ink");
+    const { interactiveSlugs } = await import("../interactive/scenes");
+    await state().start();
+    await state().createProject({ title: "Cycle", kind: "roman", series: true, interactive: true });
+    const origin = state().plan.series!.active;
+    const first = state().addTitledCard("scene", "Arrival");
+    const last = state().addTitledCard("scene", "End of the road");
+    state().addChoiceTo(first, last, "Walk north");
+    state().setGoals({ total: 100 });
+    state().changeNovelPlan(p => ({ ...p, series: { ...p.series!, books: [...p.series!.books, { id: "next", title: "Second", scenes: [], settings: { interactive: true } }] } }));
+    expect(state().moveToBook([last], "next")).toContain("Arrival");
+    state().selectVolume("next");
+    expect(state().goals).toEqual({});
+    const second = state().addTitledCard("scene", "Arrival");
+    state().setManuscriptText(second, "<p>Second book</p>");
+    state().setGoals({ total: 200 });
+    expect(projectSections(state()).numbers).toEqual({ [second]: 1 });
+    const ink = () => projectToInk(interactiveScenes(state().nodes, state().plan), interactiveSlugs(state().nodes, state().plan), state().manuscript, {}, "Next").ink;
+    expect(ink()).toContain("Second book");
+    expect(ink()).not.toContain("Walk north");
+    state().openInManuscript(first);
+    expect(state().plan.series?.active).toBe(origin);
+    expect(state().goals.total).toBe(100);
+    expect(ink()).toContain("Walk north");
+    expect(ink()).not.toContain("Second book");
+    state().selectVolume("next");
+    expect(state().goals.total).toBe(200);
+    await state().closeProject();
+  });
+
   it("un roman : projet vide enregistré, ouvert sur le canevas, inscrit dans la liste", async () => {
     await state().start();
     await state().createProject({ title: "Le Phare des Absents", kind: "roman" });

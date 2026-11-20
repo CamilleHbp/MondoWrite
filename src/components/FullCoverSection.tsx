@@ -1,3 +1,4 @@
+import { volumeTitle } from "../novelSeries";
 // Couverture complète du livre broché (#78), dans la fenêtre « Livre broché (KDP) » : réglages (cadrage, place du
 // titre, fond de la quatrième, couleur du dos, présentation de l'auteur), contrôles, aperçu du vrai PDF (pdf.js)
 // et enregistrement. La mise en page attend le nombre de pages de l'intérieur (largeur du dos). Réglages gardés
@@ -35,7 +36,7 @@ export function FullCoverSection({ pages }: { pages: number | null }) {
   const print = useCosmos((s) => s.print);
   const design = useCosmos((s) => s.coverDesign);
   const setDesign = useCosmos((s) => s.setCoverDesign);
-  const title = useCosmos((s) => s.title);
+  const title = useCosmos(volumeTitle);
   const tagline = useCosmos((s) => s.pitch.tagline ?? "");
   const backCopy = useCosmos((s) => s.pitch.quatrieme ?? "");
   const visualName = useCosmos((s) => s.pitch.visuel ?? "");

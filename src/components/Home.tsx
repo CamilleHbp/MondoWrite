@@ -40,6 +40,7 @@ export function Home() {
 
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<ProjectKind>("roman");
+  const [series, setSeries] = useState(false);
   const [interactive, setInteractive] = useState(false);
   // Option coupée entre-temps : on ne crée jamais un roman interactif qui ne serait plus proposé.
   const wantsInteractive = interactive && offerInteractive;
@@ -83,7 +84,7 @@ export function Home() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    run(() => createProject({ title: title.trim() || h.untitled, kind, interactive: wantsInteractive }));
+    run(() => createProject({ title: title.trim() || h.untitled, kind, series: series && kind === "roman", interactive: wantsInteractive }));
   };
 
   const nameOf = (p: ProjectEntry) => p.title || p.name || h.untitled;
@@ -413,6 +414,7 @@ export function Home() {
                     <span className="home-kind-hint">{t.interactive.kindHint}</span>
                   </label>
                 )}
+                {kind === "roman" && <label><input type="checkbox" checked={series} onChange={e => setSeries(e.target.checked)} />{t.volumes.series}</label>}
               </fieldset>
 
               {storage.canPickFolder && (

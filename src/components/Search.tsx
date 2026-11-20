@@ -155,7 +155,11 @@ export function Search() {
   /** Montre une carte dans la vue où l'on est, sans en changer (#85). */
   const showCard = (id: string) => {
     if (where === "bible") useCosmos.getState().openInBible(id);
-    else if (where === "plan") revealPlanRow(id);
+    else if (where === "plan") {
+      const book = plan.series?.books.find(b => b.scenes.includes(id));
+      if (book) useCosmos.getState().selectVolume(book.id);
+      requestAnimationFrame(() => revealPlanRow(id));
+    }
     else {
       // La carte trouvée est centrée et mise en avant : le reste du canevas s'estompe (Échap ou un clic sur le fond le rend).
       revealCard(id);
@@ -296,7 +300,7 @@ export function Search() {
                   <button type="button" className={`search-result${i === active ? " is-active" : ""}`} tabIndex={-1} onClick={() => choose(i)}>
                     <span className="search-result-head">
                       <span className="card-dot" style={{ background: typeColor(r.type) }} />
-                      <span className="search-result-type">{types[r.type].label}</span>
+                      <span className="search-result-type">{types[r.type].label}{r.type === "scene" && plan.series && " · " + (plan.series.books.find(b => b.scenes.includes(r.id)) ?? plan.series.books.find(b => b.id === plan.series!.active))?.title}</span>
                       <span className="search-result-title">{r.title || t.bible.untitled}</span>
                       {r.inText && where !== "bible" && <span className="search-result-type">{s.inText}</span>}
                     </span>

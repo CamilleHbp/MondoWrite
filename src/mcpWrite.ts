@@ -616,6 +616,8 @@ const NO_CHAPTERS = "Un scénario n'a pas de chapitres : ses parties sont les sa
 /** Applique une demande d'écriture. Rend le message que l'IA reçoit. */
 export async function applyMcpRequest(req: McpRequest, store: McpStore, t: Messages): Promise<McpAnswer> {
   const a = req.args ?? {};
+  const series = store.kind === "roman" ? store.plan?.()?.series : undefined;
+  if (series && req.args?.book !== series.active) return fail("Specify the active book ID from project_overview.");
   const client = req.client || "MCP";
   const cards = store.cards();
   const typeLabel = (type: CardType) => vocab(t, store.kind).types[type].label;

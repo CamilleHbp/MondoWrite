@@ -1,3 +1,4 @@
+import { volumeEntries, volumeTexts } from "../novelSeries";
 // Fenêtre « Exporter la Bible » (menu Exporter, Bible v2) : trois questions, pour qui, quelles parties, quel
 // rendu, et un aperçu. L'aperçu est le vrai PDF (biblePdf.ts) affiché par pdf.js : ce qu'on voit est ce qu'on
 // enregistre. Il se refait un instant après le dernier changement. Les réglages sont gardés dans le projet
@@ -73,9 +74,16 @@ export function BibleExportDialog() {
   const annexRef = useRef<{ key: unknown[]; paper: string; bytes: Uint8Array } | null>(null);
   const canvases = useRef<HTMLDivElement>(null);
 
+  const [bookOnly, setBookOnly] = useState(false);
+  const volume = plan.series?.books.find(b => b.id === plan.series?.active);
+  const scopeNodes = useMemo(() => {
+    if (!bookOnly || !volume) return nodes;
+    const ids = volumeEntries(plan, nodes, edges, manuscript);
+    return nodes.filter(n => ids.has(n.id));
+  }, [bookOnly, volume, nodes, edges, plan, manuscript]);
   const source: PackSource = useMemo(
-    () => ({ title: title.trim() || t.home.untitled, kind, nodes, edges, plan, manuscript, pitch, screenplay, goals, paper }),
-    [title, t, kind, nodes, edges, plan, manuscript, pitch, screenplay, goals, paper],
+    () => ({ title: (bookOnly && volume ? volume.title : title).trim() || t.home.untitled, kind, nodes: scopeNodes, edges, plan, manuscript: bookOnly && volume ? volumeTexts(plan, manuscript) : manuscript, pitch, screenplay, goals, paper }),
+    [title, t, kind, scopeNodes, bookOnly, volume, edges, plan, manuscript, pitch, screenplay, goals, paper],
   );
   const profile = useSettings((s) => s.profile);
   const ctx = useMemo(() => ({ t, lang, author, date: new Date(), profile }), [t, lang, author, profile]);
@@ -118,7 +126,7 @@ export function BibleExportDialog() {
           if (!fresh(annexRef.current)) {
             const { manuscriptOf, withShunn } = await import("../export/projectDocs");
             const { contactLines, authorName } = await import("../profile");
-            const doc = withShunn(manuscriptOf(useCosmos.getState(), { t, lang, author }, contactLines(profile)), manuscript, t, lang, authorName(profile));
+            const doc = withShunn(manuscriptOf(useCosmos.getState(), { t, lang, author }, contactLines(profile)), volumeTexts(useCosmos.getState().plan, useCosmos.getState().manuscript), t, lang, authorName(profile));
             const file = await exportDocument(doc, "pdf", { name: doc.title, paper, contents: t.exports.contents });
             annexRef.current = { key: annexKey, paper, bytes: file.data };
           }
@@ -186,7 +194,7 @@ export function BibleExportDialog() {
         file = { name: `${fileName(name, "bible")}.pdf`, extension: "pdf", mime: "application/pdf", data: pdfRef.current };
       } else {
         // Même règle que le PDF : les rubriques masquées dans la Bible (réglage d'affichage) sont exportées aussi.
-        const doc = bibleOf(useCosmos.getState(), { t, lang, author }, typesForParts(bibleOrder({ ...sections, hidden: [] }), options.parts), options.audience !== "moi");
+        const doc = bibleOf({ ...useCosmos.getState(), nodes: scopeNodes, title: source.title }, { t, lang, author }, typesForParts(bibleOrder({ ...sections, hidden: [] }), options.parts), options.audience !== "moi");
         const full = format === "md" ? doc : await (await import("../export/images")).withImages(doc, (n) => storage.mediaUrl(n));
         file = await exportDocument(full, format, { name, paper, contents: t.exports.contents });
       }
@@ -218,7 +226,7 @@ export function BibleExportDialog() {
           void exportFile();
         }}
       >
-        <h2 id="app-dialog-title">{e.title}</h2>
+        <h2 id="app-dialog-title">{e.title}</h2>{volume && <label><input type="checkbox" checked={bookOnly} onChange={e => setBookOnly(e.target.checked)} />{volume.title}</label>}
         <fieldset>
           <legend>{e.forWhom}</legend>
           {(["moi", "tiers"] as const).map((a) => (

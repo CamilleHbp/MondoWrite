@@ -171,7 +171,10 @@ export interface ReplaceSnapshot {
   title?: { id: string; title: string };
 }
 
+import { outsideBook } from "./novelSeries";
+import type { Plan } from "./plan";
 interface ReplaceState {
+  plan?: Plan;
   kind: "roman" | "scenario";
   manuscript: Record<string, string>;
   screenplay: Screenplay | null;
@@ -189,7 +192,9 @@ export function applyReplace(state: ReplaceState, req: ReplaceRequest): ReplaceS
   // Manuscrit d'un roman : la scène choisie, ou toutes.
   let manuscript = state.manuscript;
   if (state.kind !== "scenario") {
+    const outside = state.plan && !req.renameId ? outsideBook(state.plan) : new Set<string>();
     for (const id of req.sceneId ? [req.sceneId] : Object.keys(state.manuscript)) {
+      if (outside.has(id)) continue;
       const html = state.manuscript[id];
       if (!html) continue;
       const done = replaceInHtml(html, re, req.replacement, matchCase, accept(`m:${id}`));
@@ -296,7 +301,9 @@ export function findOccurrences(state: ReplaceState, req: ReplaceRequest): Occur
   const out: Occurrence[] = [];
   const title = (id: string) => state.nodes.find((n) => n.id === id)?.data.title ?? "";
   if (state.kind !== "scenario") {
+    const outside = state.plan && !req.renameId ? outsideBook(state.plan) : new Set<string>();
     for (const id of req.sceneId ? [req.sceneId] : Object.keys(state.manuscript)) {
+      if (outside.has(id)) continue;
       if (state.manuscript[id]) htmlOccurrences(state.manuscript[id], re, `m:${id}`, title(id), out);
     }
   }

@@ -4,6 +4,7 @@
 // Typographie française : apostrophe ’, guillemets « », espace insécable avant : ; ? !
 
 export const fr = {
+  volumes: {open: "Ouvrir", remove: "Retirer le jalon", move: "Déplacer vers un tome", choice: "Scènes reliées", "first": "Tome 1", "series": "Série de livres", "arc": "Plan de la série", "book": "Tome", "convert": "Transformer en série", "add": "Ajouter un tome", "title": "Titre du tome", "name": "Titre de la série", "milestone": "Jalon", "notes": "Notes", "link": "Relier à un tome ou une scène", "earlier": "Avancer", "later": "Reculer"},
   meta: { name: "Français" },
 
   app: {

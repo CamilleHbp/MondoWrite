@@ -1,3 +1,4 @@
+import { volumeTitle } from "../novelSeries";
 // Mode Lecture d'un roman interactif (lot 3, docs/plan-roman-interactif.md) : l'histoire se lit comme la lira le
 // lecteur, choix compris. Le projet est composé en Ink (interactive/ink.ts) puis compilé par inkjs, chargé à la
 // demande. Lecture depuis le début ou « à partir d'ici » (une scène), retour en arrière d'un choix, recommencer, et
@@ -48,7 +49,7 @@ export function PlayDialog() {
   const t = useT();
   const p = t.interactive.play;
   const from = usePlay((s) => s.from);
-  const title = useCosmos((s) => s.title);
+  const title = useCosmos(volumeTitle);
   const nodes = useCosmos((s) => s.nodes);
   const plan = useCosmos((s) => s.plan);
   const manuscript = useCosmos((s) => s.manuscript);

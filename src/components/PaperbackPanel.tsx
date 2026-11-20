@@ -1,3 +1,4 @@
+import { volumeTitle } from "../novelSeries";
 // Fenêtre « Livre broché (KDP) » du menu Exporter : format, papier, ISBN, pages ajoutées. Le livre est mis
 // en page dès l'ouverture et à chaque réglage changé (nombre de pages, largeur du dos), puis on enregistre
 // l'intérieur et le gabarit de couverture. Les réglages sont gardés dans le projet (`print`).
@@ -37,7 +38,7 @@ export function PaperbackPanel() {
   const [saving, setSaving] = useState(false);
   const run = useRef(0);
 
-  const title = () => useCosmos.getState().title.trim() || t.home.untitled;
+  const title = () => volumeTitle(useCosmos.getState()).trim() || t.home.untitled;
   // Roman interactif : l'intérieur est le livre-jeu (sections numérotées à la suite), pas le texte dans l'ordre du livre.
   const interactive = useInteractive();
   // Images du livre, gardées d'une mise en page à l'autre (on ne relit que celles qui manquent).

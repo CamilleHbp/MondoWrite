@@ -1,3 +1,4 @@
+import { switchBook } from "../novelSeries";
 // Fenêtre « Aller à » (Cmd/Ctrl + G, bouton des barres du Manuscrit et du Scénario, menu Édition du Mac) :
 // on tape un numéro de page ou de scène, un titre, un mot ; Entrée emmène au premier endroit trouvé.
 // Les endroits viennent de goto.ts ; on y va par `openInManuscript`, comme la recherche.
@@ -45,7 +46,16 @@ export function GoToPanel() {
     }
     const order = bookOrder(nodes, plan);
     const titles = new Map(nodes.map((n) => [n.id, n.data.title]));
-    return novelPlaces(order, titles, plan, manuscript, labels);
+    const active = novelPlaces(order, titles, plan, manuscript, labels);
+    if (!plan.series) return active;
+    const ids = [...titles.keys()];
+    const targets = plan.series.books.flatMap(b => {
+      const local = switchBook(plan, b.id, ids);
+      return novelPlaces(bookOrder(nodes, local), titles, local, manuscript, labels).targets.map(target => ({
+        ...target, detail: [b.title, target.detail].filter(Boolean).join(" · ")
+      }));
+    });
+    return { ...active, targets };
   }, [kind, screenplay, paper, nodes, plan, manuscript, labels]);
 
   const found = useMemo(() => findPlaces(query, places, labels), [query, places, labels]);

@@ -93,7 +93,7 @@ export interface McpSnapshot {
   format: typeof MCP_FORMAT;
   app: string;
   savedAt: string;
-  project: { title: string; kind: ProjectKind; kindLabel: string; access: McpAccess; logline?: string; resume?: string; labels: { logline: string; resume: string }; interactive?: boolean; facts?: McpFact[] };
+  project: { title: string; kind: ProjectKind; kindLabel: string; books?: { id: string; title: string }[]; activeBook?: string; access: McpAccess; logline?: string; resume?: string; labels: { logline: string; resume: string }; interactive?: boolean; facts?: McpFact[] };
   scenes: McpScene[];
   cards: McpCard[];
 }
@@ -297,6 +297,7 @@ export function buildMcpSnapshot(s: McpSource, t: Messages, now: Date, app: stri
       kind: s.kind,
       // Un roman interactif le dit dès la liste des projets : l'assistant écrit ses choix autrement (set_choices).
       kindLabel: interactive ? t.interactive.settingLabel : t.kinds[s.kind],
+      ...(s.kind === "roman" && s.plan.series ? { books: s.plan.series.books.map(({ id, title }) => ({ id, title })), activeBook: s.plan.series.active } : {}),
       access: s.access ?? "read",
       ...(logline ? { logline } : {}),
       ...(resume ? { resume } : {}),

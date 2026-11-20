@@ -109,6 +109,10 @@ const TOC_KEY = "mondowrite.bible.toc";
 /** Un titre reste sur une ligne dans le fichier : un retour collé devient une espace. */
 const oneLine = (text: string) => text.replace(/\s*\n\s*/g, " ");
 
+import { volumeEntries } from "../novelSeries";
+import { Volumes } from "./Volumes";
+
+
 export function Bible() {
   const { t, types, kind } = useVocab();
   const screenplay = useCosmos((s) => s.screenplay);
@@ -195,10 +199,18 @@ export function Bible() {
     const allowed = kind === "scenario" && !film ? [...typesFor(kind, true, film)] : typesFor(kind, nodes.some((n) => n.data.type === "episode"), film);
     return bibleOrder(prefs).filter((type) => allowed.includes(type));
   }, [prefs, kind, nodes, film]);
+  const volumePlan = useCosmos(s => s.plan);
+  const texts = useCosmos(s => s.manuscript);
+  const [bookOnly, filterBook] = useState(false);
+  const volume = volumePlan.series?.books.find(b => b.id === volumePlan.series?.active);
+  const relevant = useMemo(() => {
+    if (!volume || !bookOnly) return null;
+    return volumeEntries(volumePlan, nodes, edges, texts);
+  }, [volumePlan, volume, bookOnly, nodes, texts, edges]);
   const sections = useMemo(
     () =>
       shownTypes.map((type) => {
-        const cards = nodes.filter((n) => n.data.type === type).map((n) => n.data);
+        const cards = nodes.filter((n) => n.data.type === type && (!relevant || relevant.has(n.id))).map((n) => n.data);
         return {
           type,
           // Les épisodes dans l'ordre de la saison ; ailleurs les personnages principaux d'abord (Bible v2), puis l'ordre alphabétique.
@@ -209,7 +221,7 @@ export function Bible() {
                 cards.sort((a, b) => (a.id === fresh ? -1 : b.id === fresh ? 1 : Number(isSettledQuestion(a)) - Number(isSettledQuestion(b)) || Number(isPrincipal(b)) - Number(isPrincipal(a)) || a.title.localeCompare(b.title, lang))),
         };
       }),
-    [nodes, lang, fresh, shownTypes],
+    [nodes, lang, fresh, shownTypes, relevant],
   );
   const seriesCount = useCosmos((s) => (kind === "scenario" && s.screenplay ? allEpisodes(s.screenplay.elements).length : null));
   const counts = useMemo(() => {
@@ -337,6 +349,11 @@ export function Bible() {
                     </button>
                   ))}
                 <div className="bible-heading">
+                {volume && type !== "scene" && <label><input type="checkbox" checked={volume.entries?.includes(card.id) ?? false} onChange={e => {
+                  const checked = e.target.checked;
+                  useCosmos.getState().changeNovelPlan(p => p.series ? { ...p, series: { ...p.series, books: p.series.books.map(b => b.id === volume.id
+                    ? { ...b, entries: [...(b.entries ?? []).filter(id => id !== card.id), ...(checked ? [card.id] : [])] } : b) } } : p);
+                }} />{volume.title}</label>}
                 <h3>
                   {/* Le titre se change ici comme sur le canevas : c'est la même carte. Un champ qui passe à la
                       ligne (jamais tronqué, même sur iPhone), mais sans retour à la ligne : Entrée quitte le champ. */}
@@ -503,6 +520,7 @@ export function Bible() {
 
   return (
     <div className={`bible-frame${tocOpen ? "" : " hide-toc"}`}>
+    {volume && <div><Volumes /><label><input type="checkbox" checked={bookOnly} onChange={e => filterBook(e.target.checked)} />{volume.title}</label></div>}
     {bibleReturn && (
       <button type="button" className="bible-back" onClick={() => useCosmos.getState().backFromBible()}>
         <span aria-hidden="true">←</span> {kind === "scenario" ? t.bible.backToScreenplay : t.bible.backToManuscript}

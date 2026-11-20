@@ -1,3 +1,4 @@
+import { outsideBook } from "./novelSeries";
 // Modèle des nœuds du canevas et passage projet sur disque <-> état du store (fonctions pures).
 // Séparé de store.ts pour garder celui-ci centré sur les actions. Rien ici ne lit ni n'écrit l'état.
 
@@ -39,7 +40,7 @@ import { allQuestionTexts, extractAnswers } from "./assistant";
 
 export type CardNode = Node<CardData, "card">;
 /** Cadre de regroupement sur le canevas. Tenu à part des cartes : toutes les vues lisent `nodes` sans s'en soucier. */
-export type FrameNode = Node<{ title: string; kind?: "research"; locked?: boolean; beat?: string; season?: string; episode?: string }, "frame">;
+export type FrameNode = Node<{ title: string; kind?: "research"; locked?: boolean; beat?: string; season?: string; episode?: string; book?: string }, "frame">;
 
 export const FRAME_SIZE = { width: 520, height: 360 };
 /** Marge autour des cartes qu'un cadre entoure (plus haute en tête, pour son titre). */
@@ -52,7 +53,7 @@ export const toFrameNode = (frame: Frame): FrameNode => ({
   id: frame.id,
   type: "frame",
   position: { x: frame.x, y: frame.y },
-  data: { title: frame.title, ...(frame.kind === "research" ? { kind: "research" as const } : {}), ...(frame.locked ? { locked: true } : {}), ...(frame.beat ? { beat: frame.beat } : {}), ...(frame.season ? { season: frame.season } : {}), ...(frame.episode ? { episode: frame.episode } : {}) },
+  data: { title: frame.title, ...(frame.kind === "research" ? { kind: "research" as const } : {}), ...(frame.locked ? { locked: true } : {}), ...(frame.beat ? { beat: frame.beat } : {}), ...(frame.season ? { season: frame.season } : {}), ...(frame.book ? { book: frame.book } : {}), ...(frame.episode ? { episode: frame.episode } : {}) },
   width: frame.width,
   height: frame.height,
   // Derrière les cartes ; l'intérieur laisse passer les clics (voir styles.css).
@@ -305,7 +306,15 @@ export function toProject(
   // corbeille : remise après une relance de l'app, une scène retrouve sa case et son chapitre, comme dans la session.
   const present = new Set(s.nodes.map((n) => n.id));
   const awaiting = (s.awaitingLayout ?? []).filter((l) => !present.has(l.id));
-  const plan = prunePlan(s.plan, new Set([...present, ...awaiting.map((l) => l.id), ...s.trash.map((c) => c.id)]));
+  const existing = new Set([...present, ...awaiting.map(l => l.id), ...s.trash.map(c => c.id)]);
+  let plan = prunePlan(s.plan, existing);
+  if (plan.series) {
+    const outside = outsideBook(plan);
+    const own = [...s.nodes.filter(n => n.data.type === "scene").map(n => n.id), ...awaiting.map(l => l.id), ...s.trash.filter(c => c.type === "scene").map(c => c.id)].filter(id => !outside.has(id));
+    plan = { ...plan, series: { ...plan.series, books: plan.series.books.map(b => b.id === plan.series!.active
+      ? { ...b, scenes: own, outline: undefined, settings: undefined }
+      : { ...b, scenes: b.scenes.filter(id => existing.has(id)), outline: b.outline && prunePlan(b.outline, existing) }) } };
+  }
   return {
     meta: {
       // Ce qu'une version plus récente a écrit et que celle-ci ignore, d'abord : les clés connues l'emportent.
@@ -345,6 +354,7 @@ export function toProject(
                 ...(f.data.locked ? { locked: true } : {}),
                 ...(f.data.beat ? { beat: f.data.beat } : {}),
                 ...(f.data.season ? { season: f.data.season } : {}),
+                ...(f.data.book ? { book: f.data.book } : {}),
                 ...(f.data.episode ? { episode: f.data.episode } : {}),
               };
             }),
