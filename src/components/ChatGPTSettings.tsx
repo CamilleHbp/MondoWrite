@@ -1,3 +1,4 @@
+import { bindUsageAccount } from "../ai/subscriptionUsage";
 import { ProviderUsage } from "./ProviderUsage";
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -28,9 +29,10 @@ export function useChatGPTSettings(selected: boolean, open: boolean) {
     const {ai, setAi} = useSettings.getState();
     setAi({ ...ai, planReady: false });
     setModels([]);
-    if (!current.plan) return;
+    if (!current.plan) { bindUsageAccount(null); return; }
     const available = await planModels();
     if (generation.current !== id) return;
+    bindUsageAccount(current.account);
     setModels(available);
     const state = useSettings.getState();
     const previous = state.ai.models.chatgpt;
@@ -55,6 +57,7 @@ export function useChatGPTSettings(selected: boolean, open: boolean) {
       } else {
         const current = action === "status" ? await invoke<PlanStatus>("chatgpt_status")
           : await invoke<PlanStatus>("chatgpt_connect", { different: action === "different" });
+        if (action !== "status") bindUsageAccount(null);
         await sync(id, current);
         if (action !== "status" && generation.current === id) setMessage("");
       }
