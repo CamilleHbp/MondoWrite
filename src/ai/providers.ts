@@ -1,3 +1,4 @@
+import { countRequest } from "./usage";
 // Services d'IA que l'auteur peut brancher (facultatif) : Claude, OpenAI, OpenRouter, ou un modèle local
 // servi par Ollama ou LM Studio. Les requêtes partent directement de l'appareil vers le service choisi,
 // uniquement quand l'auteur déclenche une action IA. La clé reste un réglage de l'appareil.
@@ -17,8 +18,8 @@ import { isTauri } from "../platform";
 import { appleComplete } from "./apple";
 import { fitLocal, setDetectedContext } from "./limits";
 
-export type AiProvider = "anthropic" | "openai" | "openrouter" | "ollama" | "lmstudio" | "apple";
-export const AI_PROVIDERS: AiProvider[] = ["anthropic", "openai", "openrouter", "ollama", "lmstudio", "apple"];
+export type AiProvider = "anthropic" | "chatgpt" | "openai" | "openrouter" | "ollama" | "lmstudio" | "apple";
+export const AI_PROVIDERS: AiProvider[] = ["anthropic", "chatgpt", "openai", "openrouter", "ollama", "lmstudio", "apple"];
 export const isAiProvider = (v: unknown): v is AiProvider => AI_PROVIDERS.includes(v as AiProvider);
 
 interface ProviderInfo {
@@ -33,6 +34,7 @@ interface ProviderInfo {
 }
 
 export const PROVIDERS: Record<AiProvider, ProviderInfo> = {
+  chatgpt: { local: false, url: "", model: "" },
   anthropic: { local: false, url: "https://api.anthropic.com", model: "claude-sonnet-5-5" },
   openai: { local: false, url: "https://api.openai.com", model: "" },
   openrouter: { local: false, url: "https://openrouter.ai/api", model: "openrouter/auto" },
@@ -44,6 +46,8 @@ export const PROVIDERS: Record<AiProvider, ProviderInfo> = {
 
 export interface AiConfig {
   provider: AiProvider;
+  planReady?: boolean;
+  effort?: string;
   /** Clé d'API (services en ligne) ; jeton facultatif d'un serveur local qui en demande un. */
   key: string;
   model: string;
@@ -54,6 +58,7 @@ export interface AiConfig {
 /** Peut-on lancer une action IA avec ces réglages ? */
 export function isReady(config: AiConfig | null): config is AiConfig {
   if (!config || !config.model.trim()) return false;
+  if (config.provider === "chatgpt") return config.planReady === true;
   return PROVIDERS[config.provider].local || config.key.trim() !== "";
 }
 
@@ -371,6 +376,16 @@ export function isContextError(body: string): boolean {
 
 /** Envoie une consigne et rend le texte de la réponse. */
 export async function complete(config: AiConfig, system: string, user: string, options?: ChatOptions | number): Promise<string> {
+  const text = await write(config, system, user, options);
+  countRequest(config.provider);
+  return text;
+}
+
+async function write(config: AiConfig, system: string, user: string, options?: ChatOptions | number): Promise<string> {
+  if (config.provider === "chatgpt") {
+    const { planComplete } = await import("./chatgpt");
+    return planComplete(config.model, system, user, typeof options === "number" ? { maxTokens: options } : options, config.effort);
+  }
   if (config.provider === "apple") return appleComplete(system, user, typeof options === "number" ? { maxTokens: options } : options);
   const local = PROVIDERS[config.provider].local;
   const signal = typeof options === "object" ? options.signal : undefined;
@@ -447,6 +462,7 @@ export async function localContext(config: AiConfig): Promise<number | null> {
 }
 
 export async function listModels(config: AiConfig): Promise<string[]> {
+  if (config.provider === "chatgpt") return (await (await import("./chatgpt")).planModels()).map((m) => m.slug);
   // Modèle du système : rien à lister.
   if (PROVIDERS[config.provider].device) return [];
   const local = PROVIDERS[config.provider].local;

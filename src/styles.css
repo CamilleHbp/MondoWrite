@@ -465,3 +465,11 @@ html[data-platform="mac"] .topbar :is(input, textarea) { -webkit-user-select: te
 .loading-bar.is-indeterminate > span { width: 35%; animation: loading-slide 1.2s ease-in-out infinite; }
 @keyframes loading-spin { to { transform: rotate(360deg); } }
 @keyframes loading-slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+.plan-account { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+.plan-account span { min-width: 0; overflow-wrap: anywhere; }
+.provider-usage { align-self: flex-start; max-width: 100%; color: var(--muted); }
+.usage-toggle { padding: 4px 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: 0.8rem; cursor: pointer; }
+.usage-toggle:hover, .usage-toggle:focus-visible { text-decoration: underline; }
+.usage-detail { padding-block: 4px; }
+.usage-detail button { display: block; }
