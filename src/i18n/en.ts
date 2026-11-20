@@ -513,6 +513,8 @@ export const en: Messages = {
     provider: "Service",
     none: "None",
     chatgpt: {
+      planUsage: "ChatGPT usage",
+      viewAccount: "Open ChatGPT to see current plan usage and reset times.",
       thinking: "Thinking level",
       auto: "Model default",
       requests: "{n} requests today",

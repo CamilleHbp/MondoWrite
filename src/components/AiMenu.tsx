@@ -16,7 +16,6 @@ import { plainText } from "../search";
 import { headingOf, sceneBody, sceneText } from "../screenplay/sceneText";
 import { sceneSynopsis } from "../screenplay/scenes";
 import { allQuestionTexts } from "../assistant";
-import { ProviderUsage } from "./ProviderUsage";
 import { AiReviewActions } from "./AiReview";
 import { parseWires, wireCandidates, wiresPrompt, type WireSuggestion } from "../ai/structure";
 import { wireCards } from "../structureSources";
@@ -179,7 +178,6 @@ export function AiMenu() {
       {open && (
         <div className="settings-panel ai-panel" id={panelId} role="group" aria-label={t.button}>
           <div className="eyebrow">{fmt(t.with, { provider: t.providers[config.provider] })}</div>
-          <ProviderUsage provider={config.provider} />
           <button type="button" className="ghost-button" disabled={busy} onClick={() => void run("tidy")}>
             {t.tidy}
           </button>

@@ -522,6 +522,8 @@ export const fr = {
     provider: "Service",
     none: "Aucune",
     chatgpt: {
+      planUsage: "Utilisation de ChatGPT",
+      viewAccount: "Ouvrez ChatGPT pour consulter votre consommation et les dates de réinitialisation.",
       thinking: "Niveau de réflexion",
       auto: "Par défaut du modèle",
       requests: "Requêtes du jour : {n}",

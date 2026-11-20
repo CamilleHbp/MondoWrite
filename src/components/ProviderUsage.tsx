@@ -44,16 +44,19 @@ export function ProviderUsage({ provider }: { provider: AiProvider }) {
   midnight.setHours(24, 0, 0, 0);
   const date = (d: Date) => d.toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" });
   const used = (n: number) => fmt(copy.used, { n: n.toLocaleString(lang) });
-  const summary = current.length ? current.map((w) => used(w.percent)).join(" · ") : fmt(copy.requests, { n: requestsToday(provider, now) });
+  const local = fmt(copy.requests, { n: requestsToday(provider, now) });
+  const plan = provider === "chatgpt";
+  const summary = current.length ? current.map((w) => used(w.percent)).join(" · ") : plan ? copy.planUsage + " ↗" : local;
   return <div className="provider-usage" onMouseEnter={() => setExpanded(true)} onMouseLeave={() => setExpanded(false)}
     onFocus={() => setExpanded(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setExpanded(false); }}
     onKeyDown={(e) => { if (e.key === "Escape" && expanded) { e.stopPropagation(); setExpanded(false); } }}>
     <button type="button" className="usage-toggle" aria-expanded={expanded} aria-controls={id}
-      onClick={() => setExpanded(true)}>{summary}</button>
+      onClick={() => plan && !current.length ? void openExternal("https://chatgpt.com/settings/usage") : setExpanded(true)}>{summary}</button>
     <div id={id} hidden={!expanded} className="usage-detail settings-hint">
       {current.length ? current.map((w, i) => <div key={i}>{used(w.percent)} · {w.reset ? fmt(copy.reset, { date: date(new Date(w.reset * 1000)) }) : copy.unknownReset}</div>)
-        : fmt(copy.localReset, { date: date(midnight) })}
-      {provider === "chatgpt" && <button type="button" className="usage-toggle" onClick={() => void openExternal("https://chatgpt.com/settings/usage")}>{copy.usage} ↗</button>}
+        : plan ? copy.viewAccount : fmt(copy.localReset, { date: date(midnight) })}
+      {plan && <div>{local}</div>}
+      {plan && current.length > 0 && <button type="button" className="usage-toggle" onClick={() => void openExternal("https://chatgpt.com/settings/usage")}>{copy.usage} ↗</button>}
     </div>
   </div>;
 }

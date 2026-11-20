@@ -609,6 +609,8 @@ export const ca = {
     provider: "Servei",
     none: "Cap",
     chatgpt: {
+      planUsage: "Ús de ChatGPT",
+      viewAccount: "Obre ChatGPT per consultar el consum actual i les dates de restabliment.",
       thinking: "Nivell de raonament",
       auto: "Per defecte del model",
       requests: "Sol·licituds d’avui: {n}",

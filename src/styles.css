@@ -473,3 +473,11 @@ html[data-platform="mac"] .topbar :is(input, textarea) { -webkit-user-select: te
 .usage-toggle:hover, .usage-toggle:focus-visible { text-decoration: underline; }
 .usage-detail { padding-block: 4px; }
 .usage-detail button { display: block; }
+
+.toolbar-usage { position: relative; }
+.toolbar-usage .usage-toggle { white-space: nowrap; }
+.toolbar-usage .usage-detail {
+  position: absolute; top: 100%; right: 0; z-index: 100;
+  width: max-content; max-width: min(280px, 80vw); padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
