@@ -474,21 +474,11 @@ html[data-platform="mac"] .topbar :is(input, textarea) { -webkit-user-select: te
 .usage-detail { padding-block: 4px; }
 .usage-detail button { display: block; }
 
-.settings:has(> .toolbar-usage) > .icon-button > svg { width: 17px; height: 17px; transform: translateY(7px); }
-.toolbar-usage { position: absolute; top: 3px; left: 50%; transform: translateX(-50%); z-index: 2; }
-.toolbar-usage:focus-within, .toolbar-usage:hover { z-index: 5; }
-.toolbar-usage .provider-usage > button {
-  display: flex; align-items: center; gap: 1px; width: max-content; min-width: 20px; height: 13px;
-  justify-content: center; padding: 0 2px; border: 0;
-  background: var(--surface); color: var(--ink); border-radius: 5px;
-  font-size: 9px; font-weight: 650; font-variant-numeric: tabular-nums;
-}
-.toolbar-usage .provider-usage > button svg { width: 10px; height: 10px; }
-.toolbar-usage .usage-detail {
-  position: absolute; top: 100%; right: 0; width: min(236px, 80vw);
-  margin: 0; box-sizing: border-box; padding: 14px; text-align: start;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-}
+.ai-panel .menu-usage { align-self: stretch; padding: 0 12px; border-radius: 10px; background: var(--ground); border: 1px solid var(--line); }
+.menu-usage > button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; color: var(--ink); text-align: start; }
+.menu-usage > button svg { color: var(--accent); }
+.menu-usage > button span { margin-inline-start: auto; font-variant-numeric: tabular-nums; }
+.menu-usage .usage-detail { margin: 0; padding: 4px 0 10px; }
 .usage-detail:not([hidden]) { display: grid; gap: 8px; }
 .usage-detail strong, .usage-window b { color: var(--ink); }
 .usage-detail .usage-toggle { display: flex; align-items: center; gap: 5px; justify-self: start; color: var(--ink); }

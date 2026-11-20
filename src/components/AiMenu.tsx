@@ -176,9 +176,9 @@ export function AiMenu() {
           <path d="M19 16l.7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7z" />
         </svg>
       </button>
-      {config.provider === "chatgpt" && aiSettings.planReady && !open && <div className="toolbar-usage"><ProviderUsage compact provider="chatgpt" /></div>}
       {open && (
         <div className="settings-panel ai-panel" id={panelId} role="group" aria-label={t.button}>
+          {config.provider === "chatgpt" && aiSettings.planReady && <ProviderUsage menuCard provider="chatgpt" />}
           <div className="eyebrow">{fmt(t.with, { provider: t.providers[config.provider] })}</div>
           <button type="button" className="ghost-button" disabled={busy} onClick={() => void run("tidy")}>
             {t.tidy}

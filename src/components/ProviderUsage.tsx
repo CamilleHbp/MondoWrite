@@ -8,7 +8,7 @@ import { useSettings } from "../settings";
 
 interface UsageWindow { percent: number; reset: number | null }
 
-export function ProviderUsage({ provider, compact = false }: { provider: AiProvider; compact?: boolean }) {
+export function ProviderUsage({ provider, menuCard = false }: { provider: AiProvider; menuCard?: boolean }) {
   const copy = useT().ai.chatgpt;
   const lang = useSettings((s) => s.lang);
   const [windows, setWindows] = useState<UsageWindow[]>([]);
@@ -47,17 +47,17 @@ export function ProviderUsage({ provider, compact = false }: { provider: AiProvi
   const local = fmt(copy.requests, { n: requestsToday(provider, now) });
   const plan = provider === "chatgpt";
   const summary = current.length ? current.map((w) => used(w.percent)).join(" · ") : plan ? copy.planUsage + " ↗" : local;
-  return <div className="provider-usage" onMouseEnter={() => setExpanded(true)} onMouseLeave={() => setExpanded(false)}
+  return <div className={menuCard ? "provider-usage menu-usage" : "provider-usage"} onMouseEnter={() => setExpanded(true)} onMouseLeave={() => setExpanded(false)}
     onFocus={() => setExpanded(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setExpanded(false); }}
     onKeyDown={(e) => { if (e.key === "Escape" && expanded) { e.stopPropagation(); setExpanded(false); } }}>
-    <button type="button" className="usage-toggle" aria-label={compact ? copy.planUsage : undefined} aria-expanded={expanded} aria-controls={id}
+    <button type="button" className="usage-toggle" aria-label={menuCard ? copy.planUsage : undefined} aria-expanded={expanded} aria-controls={id}
       onClick={() => setExpanded(true)}>
-      {compact ? <><svg viewBox="0 0 20 16" width="13" height="12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+      {menuCard ? <><svg viewBox="0 0 20 16" width="18" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
         <path d="M3 13a8 8 0 1 1 14 0M10 10l4-4" /><circle cx="10" cy="10" r="1" />
-      </svg>{current.length > 0 && <span>{Math.round(current[0].percent)}%</span>}</> : summary}
+      </svg><strong>{copy.planUsage}</strong>{current.length > 0 && <span>{Math.round(current[0].percent)}%</span>}</> : summary}
     </button>
     <div id={id} hidden={!expanded} className="usage-detail settings-hint">
-      <strong>{copy.planUsage}</strong>
+      {!menuCard && <strong>{copy.planUsage}</strong>}
       {current.length ? current.map((w, i) => <div className="usage-window" key={i}>
         <b>{used(w.percent)}</b><progress max={100} value={w.percent} aria-label={used(w.percent)} />
         <span>{w.reset ? fmt(copy.reset, { date: date(new Date(w.reset * 1000)) }) : copy.unknownReset}</span>
