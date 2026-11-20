@@ -536,7 +536,7 @@ export const fr = {
       thinking: "Niveau de réflexion",
       auto: "Par défaut du modèle",
       requests: "Requêtes du jour : {n}",
-      used: "{n} % utilisés",
+      remaining: "{n} % restants",
       reset: "Réinitialisation le {date}",
       unknownReset: "Date de réinitialisation indisponible",
       localReset: "Requêtes terminées dans MondoWrite sur cet appareil. Remise à zéro le {date}.",

@@ -80,23 +80,24 @@ export function ProviderUsage({ provider, menuCard = false }: { provider: AiProv
   const midnight = new Date(now);
   midnight.setHours(24, 0, 0, 0);
   const date = (d: Date) => d.toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" });
-  const used = (n: number) => fmt(copy.used, { n: n.toLocaleString(lang) });
+  const remaining = (w: UsageWindow) => Math.max(0, Math.min(100, 100 - w.percent));
+  const remainingLabel = (w: UsageWindow) => fmt(copy.remaining, { n: remaining(w).toLocaleString(lang) });
   const local = fmt(copy.requests, { n: requestsToday(provider, now) });
   const plan = provider === "chatgpt";
-  const summary = current.length ? current.map((w) => used(w.percent)).join(" · ") : plan ? copy.planUsage + " ↗" : local;
+  const summary = current.length ? current.map(remainingLabel).join(" · ") : plan ? copy.planUsage + " ↗" : local;
   return <div className={menuCard ? "provider-usage menu-usage" : "provider-usage"} onMouseEnter={() => setExpanded(true)} onMouseLeave={() => setExpanded(false)}
     onFocus={() => setExpanded(true)} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setExpanded(false); }}
     onKeyDown={(e) => { if (e.key === "Escape" && expanded) { e.stopPropagation(); setExpanded(false); } }}>
-    <button type="button" className="usage-toggle" aria-label={menuCard ? copy.planUsage : undefined} aria-expanded={expanded} aria-controls={id}
+    <button type="button" className="usage-toggle" aria-label={menuCard && current.length ? copy.planUsage + ", " + remainingLabel(current[0]) : undefined} aria-expanded={expanded} aria-controls={id}
       onClick={() => setExpanded(true)}>
       {menuCard ? <><svg viewBox="0 0 20 16" width="18" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
         <path d="M3 13a8 8 0 1 1 14 0M10 10l4-4" /><circle cx="10" cy="10" r="1" />
-      </svg><strong>{copy.planUsage}</strong>{current.length > 0 && <span>{Math.round(current[0].percent)}%</span>}</> : summary}
+      </svg><strong>{copy.planUsage}</strong>{current.length > 0 && <span>{remainingLabel(current[0])}</span>}</> : summary}
     </button>
     <div id={id} hidden={!expanded} className="usage-detail settings-hint">
       {!menuCard && <strong>{copy.planUsage}</strong>}
       {current.length ? current.map((w, i) => <div className="usage-window" key={i}>
-        <b>{used(w.percent)}</b><progress max={100} value={w.percent} aria-label={used(w.percent)} />
+        <b>{remainingLabel(w)}</b><progress max={100} value={remaining(w)} aria-label={remainingLabel(w)} />
         <span>{w.reset ? fmt(copy.reset, { date: date(new Date(w.reset * 1000)) }) : copy.unknownReset}</span>
       </div>) : <div>{plan ? copy.viewAccount : fmt(copy.localReset, { date: date(midnight) })}</div>}
       {menuCard && <div className="codex-source">

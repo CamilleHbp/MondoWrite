@@ -638,7 +638,7 @@ export const es = {
       thinking: "Nivel de razonamiento",
       auto: "Predeterminado del modelo",
       requests: "Solicitudes de hoy: {n}",
-      used: "{n} % utilizado",
+      remaining: "{n} % restante",
       reset: "Se restablece el {date}",
       unknownReset: "Fecha de restablecimiento no disponible",
       localReset: "Solicitudes completadas en MondoWrite en este dispositivo. El contador se restablece el {date}.",

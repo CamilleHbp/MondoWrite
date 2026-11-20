@@ -623,7 +623,7 @@ export const ca = {
       thinking: "Nivell de raonament",
       auto: "Per defecte del model",
       requests: "Sol·licituds d’avui: {n}",
-      used: "{n} % utilitzat",
+      remaining: "{n} % restant",
       reset: "Es restableix el {date}",
       unknownReset: "Data de restabliment no disponible",
       localReset: "Sol·licituds completades al MondoWrite en aquest dispositiu. El comptador es restableix el {date}.",

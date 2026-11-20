@@ -527,7 +527,7 @@ export const en: Messages = {
       thinking: "Thinking level",
       auto: "Model default",
       requests: "{n} requests today",
-      used: "{n}% used",
+      remaining: "{n}% left",
       reset: "Resets {date}",
       unknownReset: "Reset time unavailable",
       localReset: "Completed in MondoWrite on this device. Daily count resets {date}.",
