@@ -388,6 +388,8 @@ pub fn run() {
       #[cfg(desktop)]
       chatgpt::chatgpt_disconnect,
       #[cfg(desktop)]
+      chatgpt::codex_usage::codex_usage,
+      #[cfg(desktop)]
       chatgpt::writing::chatgpt_usage,
       #[cfg(desktop)]
       chatgpt::writing::chatgpt_models,

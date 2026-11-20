@@ -77,3 +77,7 @@ features = ["async-secret-service", "tokio", "crypto-rust"]
 
 [patch.crates-io]
 num_threads = { path = "vendor/num_threads" }
+
+[target.'cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))'.dependencies.tokio]
+version = "1"
+features = ["process"]

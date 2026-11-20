@@ -1,5 +1,6 @@
 //! Desktop-only Sign in with ChatGPT. Only account labels, model names and
 //! completed writing results cross the webview boundary.
+pub mod codex_usage;
 mod vault;
 pub mod writing;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -48,6 +49,8 @@ fn random() -> Result<String> {
 
 #[derive(Default, Serialize, Deserialize)]
 struct Account {
+    #[serde(default)]
+    usage_workspace: Option<String>,
     host: String,
     client: String,
     subject: String,
@@ -60,6 +63,7 @@ struct Account {
 }
 impl Account {
     fn clear(&mut self) {
+        self.usage_workspace = None;
         self.access.clear();
         self.refresh.clear();
         self.id_token.clear();

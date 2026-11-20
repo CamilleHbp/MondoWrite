@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { AiProvider } from "../ai/providers";
 import { planModels } from "../ai/chatgpt";
 import { requestsToday } from "../ai/usage";
@@ -8,6 +8,11 @@ import { openExternal } from "../platform";
 import { useSettings } from "../settings";
 
 interface UsageWindow { percent: number; reset: number | null }
+
+type CodexSnapshot = { connected: boolean; workspace: string | null; label: string | null; windows: UsageWindow[] };
+type UsageAction = "read" | "preview" | "connect" | "disconnect";
+const codexUsage = (action: UsageAction, workspace?: string | null) =>
+  invoke<CodexSnapshot>("codex_usage", { action, workspace });
 
 export function ProviderUsage({ provider, menuCard = false }: { provider: AiProvider; menuCard?: boolean }) {
   const copy = useT().ai.chatgpt;
@@ -45,7 +50,33 @@ export function ProviderUsage({ provider, menuCard = false }: { provider: AiProv
       window.removeEventListener("focus", update);
     };
   }, [provider, menuCard]);
-  const current = provider === "chatgpt" ? windows.filter((w) => !w.reset || w.reset * 1000 > now.getTime()) : [];
+  const [codex, setCodex] = useState<CodexSnapshot | null>(null);
+  const [issue, setIssue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const revision = useRef(0);
+  const run = async (action: UsageAction, workspace?: string | null) => {
+    const id = ++revision.current;
+    setBusy(true);
+    setIssue("");
+    try {
+      const result = await codexUsage(action, workspace);
+      if (id === revision.current) setCodex(result);
+    } catch (error) {
+      if (id === revision.current) {
+        setCodex(null);
+        const code = String(error);
+        setIssue(code === "codexMissing" ? copy.codexMissing : code === "codexMismatch" ? copy.codexMismatch :
+          code === "codexWorkspace" ? copy.codexWorkspace : copy.codexError);
+      }
+    } finally {
+      if (id === revision.current) setBusy(false);
+    }
+  };
+  useEffect(() => {
+    if (menuCard && provider === "chatgpt") void run("read");
+    return () => { revision.current++; };
+  }, [menuCard, provider]);
+  const current = provider === "chatgpt" ? (codex?.connected ? codex.windows : windows).filter((w) => !w.reset || w.reset * 1000 > now.getTime()) : [];
   const midnight = new Date(now);
   midnight.setHours(24, 0, 0, 0);
   const date = (d: Date) => d.toLocaleString(lang, { dateStyle: "medium", timeStyle: "short" });
@@ -68,6 +99,18 @@ export function ProviderUsage({ provider, menuCard = false }: { provider: AiProv
         <b>{used(w.percent)}</b><progress max={100} value={w.percent} aria-label={used(w.percent)} />
         <span>{w.reset ? fmt(copy.reset, { date: date(new Date(w.reset * 1000)) }) : copy.unknownReset}</span>
       </div>) : <div>{plan ? copy.viewAccount : fmt(copy.localReset, { date: date(midnight) })}</div>}
+      {menuCard && <div className="codex-source">
+        {codex?.label && <span>{codex.label}</span>}
+        {codex?.workspace && !codex.connected && <span>{copy.confirmWorkspace}</span>}
+        {issue && <span role="status">{issue}</span>}
+        {busy && <span role="status">{copy.checkCodex}</span>}
+        {!codex?.connected && <button type="button" className="usage-toggle" disabled={busy}
+          onClick={() => void run(codex?.workspace ? "connect" : "preview", codex?.workspace)}>
+          {codex?.workspace ? copy.useWorkspace : copy.linkCodex}
+        </button>}
+        {(codex?.connected || issue) && <button type="button" className="usage-toggle" disabled={busy}
+          onClick={() => void run("disconnect")}>{copy.unlinkCodex}</button>}
+      </div>}
       {plan && <><div>{local}</div><button type="button" className="usage-toggle" onClick={() => void openExternal("https://chatgpt.com/settings/usage")}>{copy.usage}
         <svg aria-hidden="true" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 12l8-8M5 4h7v7"/></svg>
       </button></>}
