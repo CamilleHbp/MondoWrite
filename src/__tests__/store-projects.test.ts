@@ -83,7 +83,12 @@ describe("créer", () => {
     const ink = () => projectToInk(interactiveScenes(state().nodes, state().plan), interactiveSlugs(state().nodes, state().plan), state().manuscript, {}, "Next").ink;
     expect(ink()).toContain("Second book");
     expect(ink()).not.toContain("Walk north");
+    const { playBook, playProject, trailFor, usePlay } = await import("../interactive/playState");
+    usePlay.setState({ trail: { project: playProject(), book: playBook(), from: null,
+      picks: [{ scene: second, text: "Walk south", rank: 0 }] } });
+    expect(trailFor(null)).not.toBeNull();
     state().openInManuscript(first);
+    expect(trailFor(null)).toBeNull();
     expect(state().plan.series?.active).toBe(origin);
     expect(state().goals.total).toBe(100);
     expect(ink()).toContain("Walk north");
