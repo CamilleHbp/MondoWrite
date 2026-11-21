@@ -74,15 +74,16 @@ export function BibleExportDialog() {
   const annexRef = useRef<{ key: unknown[]; paper: string; bytes: Uint8Array } | null>(null);
   const canvases = useRef<HTMLDivElement>(null);
 
-  const [bookOnly, setBookOnly] = useState(false);
+  const bookOnly = useCosmos(s => !!s.bookScope);
   const volume = plan.series?.books.find(b => b.id === plan.series?.active);
   const scopeNodes = useMemo(() => {
-    if (!bookOnly || !volume) return nodes;
+    if (!volume) return nodes;
+    if (!bookOnly) return nodes.filter(n=>n.data.type!=="scene");
     const ids = volumeEntries(plan, nodes, edges, manuscript);
     return nodes.filter(n => ids.has(n.id));
   }, [bookOnly, volume, nodes, edges, plan, manuscript]);
   const source: PackSource = useMemo(
-    () => ({ title: (bookOnly && volume ? volume.title : title).trim() || t.home.untitled, kind, nodes: scopeNodes, edges, plan, manuscript: bookOnly && volume ? volumeTexts(plan, manuscript) : manuscript, pitch, screenplay, goals, paper }),
+    () => ({ title: (bookOnly && volume ? volume.title : title).trim() || t.home.untitled, kind, nodes: scopeNodes, edges, plan, manuscript: bookOnly && volume ? volumeTexts(plan, manuscript) : manuscript, pitch:volume && !bookOnly ? {} : pitch, screenplay, goals, paper }),
     [title, t, kind, scopeNodes, bookOnly, volume, edges, plan, manuscript, pitch, screenplay, goals, paper],
   );
   const profile = useSettings((s) => s.profile);
@@ -226,7 +227,7 @@ export function BibleExportDialog() {
           void exportFile();
         }}
       >
-        <h2 id="app-dialog-title">{e.title}</h2>{volume && <label><input type="checkbox" checked={bookOnly} onChange={e => setBookOnly(e.target.checked)} />{volume.title}</label>}
+        <h2 id="app-dialog-title">{e.title}</h2>{volume && <p>{bookOnly ? volume.title : plan.series?.title}</p>}
         <fieldset>
           <legend>{e.forWhom}</legend>
           {(["moi", "tiers"] as const).map((a) => (

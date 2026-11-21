@@ -51,3 +51,20 @@ it("moves a whole chapter and preserves series milestones", () => {
   expect(south.series?.milestones[0].target).toBe("a");
   expect(bookOrder(nodes, moved)).toEqual(["dedication"]);
 });
+
+it("promotes a unique placed reference while retaining an ambiguous summary and a scene milestone", () => {
+  const books = Array.from({length:9}, (_, i) => ({
+    id: "v"+i, title: "Volume "+i, entries: ["ref"+i], scenes: [] as string[]
+  }));
+  const milestones = books.map((b,i)=>({id:"ref"+i,title:b.title,notes:"Synopsis "+i,target:b.id}));
+  books[1].entries.push("ref0");
+  const events = [...milestones,{id:"event",title:"A separate event",notes:"",target:"scene4"}];
+  const arc = {template:"perso",custom:{name:"Nine volumes",beats:["u1","u2","u3"].map(key=>({key,label:key}))},
+    beats:{u1:["ref0","ref1","ref2"],u2:["ref3","ref4","ref5","event"],u3:["ref6","ref7","ref8"]}};
+  const migrated = readPlan({...EMPTY_PLAN,series:{title:"Cycle",books,active:"v0",arc,milestones:events}});
+  expect(migrated.series?.arc.beats.u1).toEqual(["ref0","v1","v2"]);
+  expect(migrated.series?.arc.beats.u2).toEqual(["v3","v4","v5","event"]);
+  expect(migrated.series?.books[4]).toMatchObject({id:"v4",reference:"ref4",entries:["ref4"],synopsis:"Synopsis 4"});
+  expect(migrated.series?.milestones.map(m=>m.id)).toEqual(["ref0","event"]);
+  expect(readPlan(JSON.parse(JSON.stringify(migrated)))).toEqual(migrated);
+});

@@ -4,6 +4,7 @@
 // Typographie française : apostrophe ’, guillemets « », espace insécable avant : ; ? !
 
 export const fr = {
+  workspace: {"left": "Déplacer à gauche", "right": "Déplacer à droite", "up": "Déplacer vers le haut", "down": "Déplacer vers le bas", "done": "Terminé", "fromBible": "Ajouter depuis la bible de la série", "edit": "Modifier les détails", "move": "Déplacer vers un arc", "reorder": "Réordonner la série", "manuscript": "Ouvrir le manuscrit", "unplaced": "Tomes à placer", "synopsis": "Synopsis", "resume": "Reprendre la rédaction", "more": "Lire la suite", "less": "Réduire", "first": "Ajouter la première scène", "order": "Ordre de lecture", "books": "Tomes", "rename": "Renommer la série"},
   volumes: {open: "Ouvrir", remove: "Retirer le jalon", move: "Déplacer vers un tome", choice: "Scènes reliées", "first": "Tome 1", "series": "Série de livres", "arc": "Plan de la série", "book": "Tome", "convert": "Transformer en série", "add": "Ajouter un tome", "title": "Titre du tome", "name": "Titre de la série", "milestone": "Jalon", "notes": "Notes", "link": "Relier à un tome ou une scène", "earlier": "Avancer", "later": "Reculer"},
   meta: { name: "Français" },
 

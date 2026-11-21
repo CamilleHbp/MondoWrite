@@ -1,3 +1,5 @@
+import { volumeEntries } from "../novelSeries";
+import { rememberSeries, seriesLocation } from "../seriesLocation";
 // La toile : on crée une carte n'importe où (double-clic à la souris, bouton « Nouvelle carte »
 // au doigt, ou bouton « + »), on tire un fil d'un point de connexion vers une autre
 // carte, on double-clique (ou touche, sur écran tactile) un fil pour l'étiqueter.
@@ -119,9 +121,14 @@ function chosenCards(target: HTMLElement | Element | null): string[] {
 
 export function Toile() {
   const t = useT();
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, addCard, renameLink, focusId, setView, undo, redo } =
+  const { nodes: allCards, edges: allEdges, bookScope, plan, manuscript, onNodesChange, onEdgesChange, onConnect, addCard, renameLink, focusId, setView, undo, redo } =
     useCosmos();
-  const frames = useCosmos((s) => s.frames);
+  const allFrames = useCosmos(s => s.frames);
+  const kept = useMemo(() => bookScope ? volumeEntries(plan, allCards, allEdges, manuscript) : null, [bookScope, plan, allCards, allEdges, manuscript]);
+  const nodes = useMemo(() => kept ? allCards.filter(n => kept.has(n.id)) : allCards, [allCards, kept]);
+  const edges = useMemo(() => kept ? allEdges.filter(e => kept.has(e.source) && kept.has(e.target)) : allEdges, [allEdges, kept]);
+  const frames = useMemo(() => bookScope ? allFrames.filter(f => f.data.book === bookScope) : allFrames, [allFrames,bookScope]);
+  const [camera] = useState(() => bookScope ? seriesLocation().cameras?.[bookScope] : undefined);
   const addFrame = useCosmos((s) => s.addFrame);
   // Cartes enfin mesurées (le canevas s'ouvre, ou une carte vient de naître) : une scène posée dans son cadre
   // d'après une hauteur estimée (écrite dans la vue Scénario, canevas fermé) et qui en dépasse fait ranger de nouveau.
@@ -889,7 +896,9 @@ export function Toile() {
         maxZoom={MAX_ZOOM}
         // Arrivée pour montrer une carte (Bible, Plan, recherche depuis une autre vue) : pas de « tout voir »
         // initial, qui passait après le centrage sur un gros projet (toutes les cartes mesurées plus tard).
-        fitView={!arrivedFor}
+        defaultViewport={camera}
+        onMoveEnd={(_,viewport)=>{if(bookScope) rememberSeries({cameras:{...seriesLocation().cameras,[bookScope]:viewport}});}}
+        fitView={!arrivedFor && !camera}
         fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
         defaultEdgeOptions={{
           type: "floating",

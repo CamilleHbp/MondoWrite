@@ -3,6 +3,7 @@
 import type { Messages } from "./fr";
 
 export const en: Messages = {
+  workspace: {"left": "Move left", "right": "Move right", "up": "Move up", "down": "Move down", "done": "Done", "fromBible": "Add from series Bible", "edit": "Edit details", "move": "Move to arc", "reorder": "Reorder in series", "manuscript": "Open manuscript", "unplaced": "Unplaced books", "synopsis": "Synopsis", "resume": "Continue writing", "more": "Read more", "less": "Show less", "first": "Add first scene", "order": "Reading order", "books": "Books", "rename": "Rename series"},
   volumes: {open: "Open", remove: "Remove milestone", move: "Move to book", choice: "Linked scenes", "first": "Book 1", "series": "Book series", "arc": "Series outline", "book": "Book", "convert": "Turn into a series", "add": "Add book", "title": "Book title", "name": "Series title", "milestone": "Milestone", "notes": "Notes", "link": "Link to a book or scene", "earlier": "Earlier", "later": "Later"},
   meta: { name: "English" },
 

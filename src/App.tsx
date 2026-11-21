@@ -1,8 +1,11 @@
+import { SeriesCanvas } from "./components/SeriesCanvas";
+import { rememberSeries, seriesLocation } from "./seriesLocation";
+import { SeriesOutline, SeriesManuscript } from "./components/SeriesWorkspace";
 import { openGuide } from "./help";
 import { useEffect } from "react";
 import { sendCommand } from "./commands";
 import { openPalette } from "./commandList";
-import { captureSpot } from "./resume";
+import { currentCaret, captureSpot } from "./resume";
 import { reviewProjectClosed, reviewProjectOpened } from "./storeReview";
 import { nextZoom, useSettings } from "./settings";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -49,6 +52,9 @@ export function App() {
   const phone = usePhone();
   const view = shownView(storedView, phone);
   const kind = useCosmos((s) => s.kind);
+  const series = useCosmos(s => s.kind === "roman" ? s.plan.series : undefined);
+  const scope = useCosmos(s => s.bookScope);
+  const overview = series && !scope;
   const loaded = useCosmos((s) => s.loaded);
   const screen = useCosmos((s) => s.screen);
   const focusMode = useCosmos((s) => s.focusMode);
@@ -71,6 +77,13 @@ export function App() {
   useEffect(
     () =>
       useCosmos.subscribe((s, prev) => {
+        if (prev.screen === "project" && prev.plan.series && prev.bookScope && prev.view === "manuscrit" &&
+            (s.bookScope !== prev.bookScope || s.view !== prev.view || s.screen !== prev.screen || s.manuscript !== prev.manuscript)) {
+          const caret = currentCaret();
+          if (caret?.scene) rememberSeries({ ...(s.manuscript !== prev.manuscript ? { lastBook: prev.bookScope } : {}), carets: { ...seriesLocation().carets, [prev.bookScope]: caret } });
+        }
+        if (s.plan.series && s.screen === "project" && prev.screen === "project" && (s.view !== prev.view || s.bookScope !== prev.bookScope))
+          rememberSeries({ scope: s.bookScope, view: s.view });
         if (s.screen === "project" && prev.screen === "project" && s.view !== prev.view) captureSpot(storage.current?.(), s.view);
       }),
     [],
@@ -301,11 +314,11 @@ export function App() {
         <StoryImportReport />
         <RetroInvite />
         <main className="app-main">
-          {view === "toile" && <Toile />}
-          {view === "bible" && <Bible />}
-          {view === "plan" && (kind === "scenario" ? <Sequencier /> : <Plan />)}
+          {view === "toile" && (overview ? <SeriesCanvas series={series}/> : <Toile key={scope}/>)}
+          {view === "bible" && <Bible key={scope}/>}
+          {view === "plan" && (kind === "scenario" ? <Sequencier /> : overview ? <SeriesOutline series={series}/> : <Plan key={scope}/>)}
           {/* Même vue, deux ateliers : prose pour un roman (à venir), format cinéma pour un scénario. */}
-          {view === "manuscrit" && (kind === "scenario" ? <ScreenplayView /> : <Manuscript />)}
+          {view === "manuscrit" && (kind === "scenario" ? <ScreenplayView /> : overview ? <SeriesManuscript series={series}/> : <Manuscript key={scope}/>)}
         </main>
       </div>
       <Tour />

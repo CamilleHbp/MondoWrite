@@ -1,4 +1,5 @@
-import { MoveToBook, Volumes } from "./Volumes";
+import { outsideBook } from "../novelSeries";
+import { MoveToBook, ConvertSeries } from "./Volumes";
 // Plan (vue Plan d'un projet roman) : les cartes Scène rangées dans les cases d'un gabarit
 // (trois actes, Save the Cat, voyage du héros) ou dans une liste libre. Rien n'est recopié :
 // le plan ne retient que l'ordre, le titre et le texte restent ceux de la carte.
@@ -70,7 +71,7 @@ export function Plan() {
 
   // Roman interactif (lot 11, #91) : la carte des choix est le canevas ; le Plan montre les sections du livre.
   const interactive = useInteractive();
-  const sceneIds = useMemo(() => planScenes(nodes), [nodes]);
+  const sceneIds = useMemo(() => { const outside=outsideBook(plan); return planScenes(nodes).filter(id=>!outside.has(id)); }, [nodes,plan]);
   const arranged = useMemo(() => arrange(plan, sceneIds), [plan, sceneIds]);
   const cards = useMemo(() => new Map(nodes.map((n) => [n.id, n.data])), [nodes]);
   const free = plan.template === "libre";
@@ -264,12 +265,12 @@ export function Plan() {
             {!card.fiche?.synopsis && text && <p className="sq-desc">{text.length > 160 ? `${text.slice(0, 160)}…` : text}</p>}
             {/* Statut et point de vue toujours là ; chapitre et case derrière « Ranger » (#55), comme le séquencier. */}
             <div className="scene-pills">
-              <SceneStatusPicker card={card} /><MoveToBook ids={[id]} />
+              <SceneStatusPicker card={card} />
               <PovPicker card={card} />
             </div>
             {book && <MarksTags marks={book.marks.get(id)} />}
             {canArrange && arranging === id && (
-            <div className="plan-meta" id={`arrange-${id}`}>
+            <div className="plan-meta" id={`arrange-${id}`}><MoveToBook ids={[id]} />
               {beat !== null && !interactive && (
                 <label className="plan-to">
                   <span className="sr-only">{fmt(c.chooseFor, { title })}</span>
@@ -341,7 +342,7 @@ export function Plan() {
   return (
     <div className="sequencer" ref={rootRef}>
       <div className={`sq-inner${asCards || showTimeline ? " is-cards" : ""}`}>
-        <Volumes manage />
+        {!plan.series && <ConvertSeries />}
         <PlanHeader
           title={interactive ? t.interactive.plan.sectionsTitle : p.title}
           timeline={showTimeline}
@@ -395,6 +396,7 @@ export function Plan() {
         ) : (
           <>
         {/* Sections du livre : ni case où glisser ni flèches, l'aide du Plan ne s'y applique pas. */}
+        {plan.series && sceneIds.length === 0 && <button className="ghost-button" onClick={()=>rootRef.current?.querySelector<HTMLInputElement>(".plan-add input")?.focus()}>{t.workspace.first}</button>}
         {(sceneIds.length === 0 || !bySection) && <p className="sp-empty">{sceneIds.length === 0 ? p.empty : p.hint}</p>}
         {/* Le cercle de Dan Harmon se lit en cercle : ses huit étapes, et les trous. */}
         {plan.template === "cercleHarmon" && (
@@ -444,7 +446,7 @@ export function Plan() {
                       aria-label={fmt(c.titleAria, { name })}
                       onChange={(e) => renamePlanChapter(ch.id, e.target.value)}
                     />
-                    <MoveToBook ids={order.filter(id => ch.scenes.includes(id)).concat(arranged.unplaced.filter(id => ch.scenes.includes(id)))} chapter={ch.id} />
+                    <details><summary>{p.arrange}</summary><MoveToBook ids={order.filter(id => ch.scenes.includes(id)).concat(arranged.unplaced.filter(id => ch.scenes.includes(id)))} chapter={ch.id} /></details>
                     <span className="plan-count">{group.ids.length}</span>
                     <button type="button" className="icon-button" aria-label={fmt(c.remove, { name })} title={fmt(c.remove, { name })} onClick={() => askDeleteChapter(ch.id)}>
                       <span aria-hidden="true">×</span>

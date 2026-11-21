@@ -6,10 +6,15 @@ import { EMPTY_PLAN, readPlan, type Plan } from "./plan";
  * Other books retain their own outline and settings here. Scene files always
  * stay in the project and keep the same IDs when their owner changes.
  */
+type Positions = Record<string, { x: number; y: number }>;
+
 export interface Volume {
+  positions?: Positions;
   id: string;
   title: string;
   scenes: string[];
+  synopsis?: string;
+  reference?: string;
   outline?: Plan;
   settings?: Record<string, unknown>;
   entries?: string[];
@@ -23,11 +28,17 @@ export interface Milestone {
 }
 
 export interface NovelSeries {
+  positions?: Positions;
   title: string;
   active: string;
   books: Volume[];
   arc: Plan;
   milestones: Milestone[];
+}
+
+function positions(value: unknown): Positions | undefined {
+  if (!value || typeof value !== "object") return;
+  return Object.fromEntries(Object.entries(value).filter(([, p]) => p && Number.isFinite(p.x) && Number.isFinite(p.y)));
 }
 
 export function readSeries(raw: unknown): NovelSeries | undefined {
@@ -50,14 +61,36 @@ export function readSeries(raw: unknown): NovelSeries | undefined {
       id: b.id,
       title: typeof b.title === "string" ? b.title : "",
       scenes,
+      positions: positions(b.positions),
+      synopsis: typeof b.synopsis === "string" ? b.synopsis : undefined,
+      reference: typeof b.reference === "string" ? b.reference : undefined,
       settings: b.settings && typeof b.settings === "object" && !Array.isArray(b.settings) ? b.settings : undefined,
       entries: Array.isArray(b.entries) ? b.entries.filter(x => typeof x === "string") : [],
       outline: leaf(b.outline),
     });
   }
   if (!books.length) return;
-  return { title: typeof data.title === "string" ? data.title : "", active: books.find(b => b.id === data.active)?.id ?? books[0].id, books,
-    arc: leaf(data.arc), milestones: Array.isArray(data.milestones) ? data.milestones.filter(m => m && typeof m.id === "string" && typeof m.title === "string" && typeof m.notes === "string") : [] };
+  const arc = leaf(data.arc);
+  const milestones = Array.isArray(data.milestones) ? data.milestones.filter(m => m && typeof m.id === "string" && typeof m.title === "string" && typeof m.notes === "string") : [];
+  const promoted = new Map<string, string>();
+  for (const book of books) {
+    const matches = milestones.filter(m => m.target === book.id && m.title === book.title && book.entries?.includes(m.id));
+    if (book.reference || matches.length !== 1) continue;
+    const [match] = matches;
+    if (milestones.filter(m => m.id === match.id).length !== 1 ||
+        books.filter(b => b.entries?.includes(match.id)).length !== 1 ||
+        Object.values(arc.beats).filter(row => row.includes(match.id)).length !== 1) continue;
+    book.reference = match.id;
+    book.synopsis = match.notes;
+    promoted.set(match.id, book.id);
+  }
+  return {
+    title: typeof data.title === "string" ? data.title : "",
+    positions: positions(data.positions),
+    active: books.find(b => b.id === data.active)?.id ?? books[0].id, books,
+    arc: promoted.size ? { ...arc, beats: Object.fromEntries(Object.entries(arc.beats).map(([key, ids]) => [key, ids.map(id => promoted.get(id) ?? id)])) } : arc,
+    milestones: milestones.filter(m => !promoted.has(m.id)),
+  };
 }
 
 function leaf(plan?: Plan): Plan {
@@ -109,6 +142,14 @@ export function volumeTexts(plan: Plan, manuscript: Record<string, string>) {
   return Object.fromEntries(Object.entries(manuscript).filter(([id]) => !outside.has(id)));
 }
 
+export function includeBookEntry(plan: Plan, scope: string | null, id: string): Plan {
+  const series = plan.series;
+  if (!scope || !series) return plan;
+  const books = series.books.map(book => book.id === scope && !book.entries?.includes(id)
+    ? { ...book, entries: [...(book.entries ?? []), id] } : book);
+  return { ...plan, series: { ...series, books } };
+}
+
 export function volumeEntries(plan: Plan, nodes: readonly Positioned[], edges: readonly {source: string; target: string}[], texts: Record<string, string>) {
   const volume = plan.series?.books.find(b => b.id === plan.series?.active);
   const outside = outsideBook(plan);
@@ -120,6 +161,7 @@ export function volumeEntries(plan: Plan, nodes: readonly Positioned[], edges: r
     if (sceneIds.has(e.source)) kept.add(e.target);
     if (sceneIds.has(e.target)) kept.add(e.source);
   }
+  for (const id of outside) kept.delete(id);
   return kept;
 }
 

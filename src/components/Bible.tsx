@@ -109,8 +109,9 @@ const TOC_KEY = "mondowrite.bible.toc";
 /** Un titre reste sur une ligne dans le fichier : un retour collé devient une espace. */
 const oneLine = (text: string) => text.replace(/\s*\n\s*/g, " ");
 
+import { seriesLocation } from "../seriesLocation";
 import { volumeEntries } from "../novelSeries";
-import { Volumes } from "./Volumes";
+
 
 
 export function Bible() {
@@ -194,19 +195,21 @@ export function Bible() {
   // Rubriques du projet : pas d'Épisodes dans un roman (sauf s'il en a déjà).
   // Ni Épisodes pour un film (pastille Format).
   const film = useCosmos((s) => formOf(kind, s.pitch) === "film");
+  const overview = useCosmos(s=>!!s.plan.series && !s.bookScope);
   const shownTypes = useMemo(() => {
     // Série : la rubrique Épisodes lit les sections du scénario (SeriesEpisodes), dans tout scénario qui n'est pas un film.
     const allowed = kind === "scenario" && !film ? [...typesFor(kind, true, film)] : typesFor(kind, nodes.some((n) => n.data.type === "episode"), film);
-    return bibleOrder(prefs).filter((type) => allowed.includes(type));
-  }, [prefs, kind, nodes, film]);
+    return bibleOrder(prefs).filter((type) => allowed.includes(type) && !(overview && type === "scene"));
+  }, [prefs, kind, nodes, film, overview]);
   const volumePlan = useCosmos(s => s.plan);
   const texts = useCosmos(s => s.manuscript);
-  const [bookOnly, filterBook] = useState(false);
+  const bookOnly = useCosmos(s => !!s.bookScope);
+  const [adding, setAdding] = useState(false);
   const volume = volumePlan.series?.books.find(b => b.id === volumePlan.series?.active);
   const relevant = useMemo(() => {
-    if (!volume || !bookOnly) return null;
+    if (!volume || !bookOnly || adding) return null;
     return volumeEntries(volumePlan, nodes, edges, texts);
-  }, [volumePlan, volume, bookOnly, nodes, texts, edges]);
+  }, [volumePlan, volume, bookOnly, adding, nodes, texts, edges]);
   const sections = useMemo(
     () =>
       shownTypes.map((type) => {
@@ -226,12 +229,12 @@ export function Bible() {
   const seriesCount = useCosmos((s) => (kind === "scenario" && s.screenplay ? allEpisodes(s.screenplay.elements).length : null));
   const counts = useMemo(() => {
     const out = new Map<CardType, number>();
-    for (const n of nodes) out.set(n.data.type, (out.get(n.data.type) ?? 0) + 1);
+    for (const n of nodes) if (!relevant || relevant.has(n.id)) out.set(n.data.type, (out.get(n.data.type) ?? 0) + 1);
     if (seriesCount !== null) out.set("episode", seriesCount);
     return out;
-  }, [nodes, seriesCount]);
+  }, [nodes, seriesCount,relevant]);
   // « projet » : la couverture du projet, première page de la Bible (et page d'arrivée), sans données propres.
-  const [current, setCurrent] = useState<CardType | "projet">("projet");
+  const [current, setCurrent] = useState<CardType | "projet">(volume ? "personnage" : "projet");
   const onCover = current === "projet";
   const onPage = onCover;
   // Personnages : fiches ou carte des relations (état d'affichage, non enregistré).
@@ -256,6 +259,10 @@ export function Bible() {
 
   // Une rubrique du sommaire : on défile jusqu'à elle (toutes sont sur la même page).
   const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const loc=seriesLocation();
+    if (overview && loc.overview==="bible" && rootRef.current) rootRef.current.scrollTop=loc.scroll ?? 0;
+  },[overview]);
   // Au doigt : glisser vers la droite tire le sommaire, vers la gauche le repousse.
   useTouchGestures(rootRef, {
     onSwipe: (dir) => {
@@ -349,7 +356,7 @@ export function Bible() {
                     </button>
                   ))}
                 <div className="bible-heading">
-                {volume && type !== "scene" && <label><input type="checkbox" checked={volume.entries?.includes(card.id) ?? false} onChange={e => {
+                {volume && adding && type !== "scene" && <label><input type="checkbox" checked={volume.entries?.includes(card.id) ?? false} onChange={e => {
                   const checked = e.target.checked;
                   useCosmos.getState().changeNovelPlan(p => p.series ? { ...p, series: { ...p.series, books: p.series.books.map(b => b.id === volume.id
                     ? { ...b, entries: [...(b.entries ?? []).filter(id => id !== card.id), ...(checked ? [card.id] : [])] } : b) } } : p);
@@ -520,7 +527,7 @@ export function Bible() {
 
   return (
     <div className={`bible-frame${tocOpen ? "" : " hide-toc"}`}>
-    {volume && <div><Volumes /><label><input type="checkbox" checked={bookOnly} onChange={e => filterBook(e.target.checked)} />{volume.title}</label></div>}
+
     {bibleReturn && (
       <button type="button" className="bible-back" onClick={() => useCosmos.getState().backFromBible()}>
         <span aria-hidden="true">←</span> {kind === "scenario" ? t.bible.backToScreenplay : t.bible.backToManuscript}
@@ -547,13 +554,14 @@ export function Bible() {
       {onCover || !shown ? (
         <section className="bible-main is-cover" aria-label={t.pitch.toc} ref={mainRef}>
           <h1 className="sr-only">{t.pitch.toc}</h1>
-          <ProjectCover onOpenTheme={openCard} onAddTheme={() => create("theme")} />
+          {overview ? <h2>{volumePlan.series?.title}</h2> : <ProjectCover onOpenTheme={openCard} onAddTheme={() => create("theme")} />}
         </section>
       ) : (
         // Toutes les rubriques affichées, l'une sous l'autre : la Bible se lit comme le document exporté
         // (mêmes rubriques, même ordre, mêmes images). Le sommaire mène à chacune.
         <section className="bible-main" aria-label={t.bible.tocTitle} ref={mainRef}>
           <h1 className="sr-only">{t.bible.tocTitle}</h1>
+          {bookOnly && <button className="ghost-button" onClick={() => setAdding(!adding)}>{adding ? t.workspace.done : t.workspace.fromBible}</button>}
           {sections.map((group, i) => (
             <div key={group.type} className="bible-group" data-group={group.type}>
               {/* Première rubrique d'une partie : son nom, comme dans un dossier (« 3 · Univers »). */}
