@@ -114,6 +114,7 @@ export function PaperbackPanel() {
   return (
     <form className="paperback-panel replace-panel" onSubmit={(e) => e.preventDefault()}>
       <h2 id="app-dialog-title">{k.title}</h2>
+      {useCosmos.getState().bookScope && <p>{title()}</p>}
       <p className="paperback-intro">{k.intro}</p>
       <div className="paperback-grid">
         <label className="replace-field">

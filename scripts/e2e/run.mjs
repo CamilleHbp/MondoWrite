@@ -230,23 +230,99 @@ const scenarios = [
     name: "romans en série : changer de tome et retrouver le manuscrit",
     async run(h) {
       const { page } = h;
-      await h.example();
+      await h.create("The Estuary");
+      const titles=["The Ferry","Sandbanks","Storm Signal","The Pilot","Beacon","The Breakwater","Outer Harbour","The Last Crossing","First Light Beyond the Longest Reach of the Northern Harbour"];
+      await h.saved(f=>!!f["cosmos.json"],"fixture project not saved");
+      await page.evaluate(titles=>{
+        const key=Object.keys(localStorage).find(k=>k.startsWith("cosmos:projet:"));
+        const files=JSON.parse(localStorage.getItem(key));
+        const meta=JSON.parse(files["cosmos.json"]);
+        const books=titles.map((title,i)=>({id:"volume-"+(i+1),title:"Book "+(i+1)+" · "+title,scenes:[],entries:["ref-"+i]}));
+        const milestones=books.map((b,i)=>({id:"ref-"+i,title:b.title,notes:"A pilot charts a new route through the estuary before the tide changes.",target:b.id}));
+        const beats=["Rising tide","High water","Ebb tide"].map((label,i)=>({key:"u"+(i+1),label,hint:"Three crossings change the fate of the harbour."}));
+        const arc={template:"perso",custom:{name:"Nine-book series",beats},beats:Object.fromEntries(beats.map((b,i)=>[b.key,milestones.slice(3*i,3*i+3).map(m=>m.id)]))};
+        meta.plan={template:"libre",beats:{},series:{title:meta.title,active:books[0].id,books,milestones,arc}};
+        books.forEach((b,i)=>{
+          const id=b.entries[0];
+          files["cartes/"+id+".md"]="---\nid: "+id+"\ntype: intrigue\ntitle: "+titles[i]+"\n---\n";
+          meta.layout.push({id,x:300*i,y:0});
+        });
+        files["cosmos.json"]=JSON.stringify(meta);
+        localStorage.setItem(key,JSON.stringify(files));
+      },titles);
+      await page.reload();
+      await page.getByRole("button",{name:/The Estuary/}).first().click();
+      const outline=page.locator(".series-outline");
+      await outline.waitFor();
+      assert(await outline.locator(".series-book").count()===9,"expected nine primary books");
+      assert(await outline.locator(".series-arc").count()===3,"expected three arcs");
+      assert(await outline.locator("select option:checked").textContent()==="Nine-book series","custom template missing");
+      assert(await outline.locator(".series-event").count()===0,"duplicate reference milestones");
+      await outline.locator(".sq-modes button").nth(1).click();
+      async function inspectSizes(name) {
+      for(const width of [1280,820,390]){
+        await page.setViewportSize({width,height:820});
+        for(const theme of ["dark","light"]){
+          await page.locator("html").evaluate((el,t)=>el.dataset.theme=t,theme);
+          assert(await page.locator("body").evaluate(el=>el.scrollWidth<=innerWidth),"horizontal overflow at "+width);
+          if(process.env.SERIES_SHOTS) await page.screenshot({path:join(process.env.SERIES_SHOTS,name+"-"+width+"-"+theme+".png")});
+        }
+      }
+      await page.setViewportSize({width:1280,height:820});
+      }
+      await inspectSizes("outline");
+      await outline.getByRole("button",{name:"The Pilot",exact:true}).click();
+      await page.getByText("Ajouter la première scène",{exact:true}).click();
+      await page.locator(".plan-add input").first().fill("Crossing the bar");
+      await page.locator(".plan-add input").first().press("Enter");
+      await inspectSizes("book");
+      await h.view(1);
+      await page.locator(".react-flow__node-card").first().waitFor();
+      await h.view(3);
+      await page.locator(".bible-frame").waitFor();
+      await page.getByRole("button",{name:"Ajouter depuis la bible de la série"}).click();
+      const shared=page.locator('[data-entry="ref-0"]');
+      await shared.getByRole("checkbox").first().check();
+      await page.getByRole("button",{name:"Terminé",exact:true}).click();
+      await shared.locator("h3 textarea").fill("The Harbour Chart");
+      await shared.locator("h3 textarea").press("Tab");
+      await h.view(4);
+      await page.locator(".ProseMirror[contenteditable=true]").first().fill("The tide was turning.");
+      await page.locator(".series-crumb button").first().click();
+      await outline.waitFor();
+      assert(await page.locator("[data-book=volume-4]").evaluate(e=>e===document.activeElement),"focus not restored");
+      await h.saved(f=>Object.values(f).some(t=>typeof t==="string" && t.includes("The tide was turning.")),"book edit missing");
+      await outline.locator(".sq-head").getByRole("button",{name:"+ Tome",exact:true}).click();
+      await page.getByRole("dialog").getByLabel("Titre du tome").fill("After the Storm");
+      await page.getByRole("dialog").getByRole("button",{name:"Terminé"}).click();
+      const newBook=outline.locator(".series-book").filter({hasText:"After the Storm"});
+      assert(await newBook.locator("xpath=ancestor::section").locator("h2").innerText().then(t=>t.includes("Tomes à placer")),"header add should be unplaced");
+      for(const [action,value] of [["Déplacer vers un arc","u2"],["Réordonner la série","0"]]){
+        await newBook.locator(".more-button").focus();
+        await page.keyboard.press("Enter");
+        await page.getByRole("menuitem",{name:action}).click();
+        await page.getByRole("dialog").locator("select").selectOption(value);
+        await page.getByRole("dialog").getByRole("button",{name:"Terminé"}).click();
+      }
+      const arc=outline.locator(".series-arc").nth(1);
+      await arc.getByRole("button",{name:"+ Jalon"}).click();
+      await page.getByRole("dialog").getByLabel("Jalon",{exact:true}).fill("Spring tide");
+      await page.getByRole("dialog").getByLabel("Relier à un tome ou une scène").selectOption({label:"Crossing the bar"});
+      await page.getByRole("dialog").getByRole("button",{name:"Terminé"}).click();
+      await h.saved(f=>JSON.parse(f["cosmos.json"]).plan.series.milestones.length===1,"independent milestone not saved");
+      await page.reload();
+      await page.getByRole("button",{name:/The Estuary/}).first().click();
+      await h.view(3);
+      assert(await page.locator('[data-entry="ref-0"] h3 textarea').inputValue()==="The Harbour Chart","shared edit missing");
       await h.view(2);
-      const count = await page.locator(".plan-scene").count();
-      assert(count > 0, "scènes du premier tome");
-      await page.locator("summary").filter({hasText: "Transformer en série"}).click();
-      await page.getByLabel("Titre de la série", {exact: true}).fill("Cycle");
-      await page.getByRole("button", {name: "Transformer en série", exact: true}).click();
-      await page.getByRole("textbox", {name: "Ajouter un tome"}).fill("Suite");
-      await page.getByRole("button", {name: "Ajouter un tome"}).click();
-      await until(async () => await page.locator(".plan-scene").count() === 0, "le deuxième tome contient des scènes du premier");
-      await h.saved(f => JSON.parse(f["cosmos.json"] ?? "{}").plan?.series?.books.length === 2, "série absente de la sauvegarde");
-      await h.reloadAndOpen();
-      await h.view(2);
-      await page.getByRole("combobox", {name: "Tome", exact: true}).selectOption({index: 0});
-      await until(async () => await page.locator(".plan-scene").count() === count, "scènes absentes après relecture");
-      await page.setViewportSize({width: 390, height: 844});
-      assert(await page.getByRole("combobox", {name: "Tome", exact: true}).isVisible(), "tomes inaccessibles sur téléphone");
+      await arc.locator(".series-event .link-button").click();
+      await page.getByText("The tide was turning.",{exact:true}).first().waitFor();
+      await page.locator(".series-crumb button").first().click();
+      await h.view(1);
+      await page.locator(".series-map-card").first().waitFor();
+      assert(await page.locator(".series-map-frame").count()===3,"canvas arc count");
+      await page.locator(".series-map-card").getByRole("button",{name:"The Pilot",exact:true}).click();
+      await page.locator(".react-flow__node-card").first().waitFor();
     },
   },
   {
@@ -2712,7 +2788,7 @@ try {
       const file = join(SHOTS, `${results.length + 1}.png`);
       await page.screenshot({ path: file }).catch(() => {});
       failure += `\n      capture : ${file}`;
-      if (errors.length > 1) failure += `\n      ${errors.length} erreurs de la page, dont : ${errors.slice(0, 3).join(" ; ")}`;
+      if (errors.length) failure += `\n      ${errors.length} erreurs de la page, dont : ${errors.slice(0, 3).join(" ; ")}`;
     }
     const known = KNOWN.has(sc.name);
     results.push({ name: sc.name, failure, known });

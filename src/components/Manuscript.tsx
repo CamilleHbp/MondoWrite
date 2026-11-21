@@ -1,5 +1,5 @@
-import { volumeTexts } from "../novelSeries";
-import { Volumes } from "./Volumes";
+import { volumeTitle, volumeTexts } from "../novelSeries";
+
 // Manuscrit (vue Manuscrit d'un projet roman) : on écrit une scène à la fois, dans l'ordre du Plan.
 // À gauche les scènes, regroupées par chapitre, et leur nombre de mots ; au centre le texte, mis en
 // pages comme un livre (la numérotation continue d'une scène à l'autre) ; à droite les statistiques
@@ -415,7 +415,7 @@ export function Manuscript() {
   if (!current || !card) {
     return (
       <div className="empty-view ms-empty">
-        <Volumes /><h1>{m.empty}</h1>
+        <h1>{m.empty}</h1>
         <p>{m.emptyBody}</p>
         <form
           onSubmit={(e) => {
@@ -574,7 +574,7 @@ export function Manuscript() {
   const fillTitlePage = (id: string) => {
     if (plainText(useCosmos.getState().manuscript[id] ?? "")) return;
     const esc = (x: string) => x.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const { title: projectTitle } = useCosmos.getState();
+    const projectTitle = volumeTitle(useCosmos.getState());
     const author = useSettings.getState().author.trim();
     useCosmos.getState().setManuscriptText(id, `<h2>${esc(projectTitle.trim() || t.home.untitled)}</h2>${author ? `<p>${esc(author)}</p>` : ""}`);
   };
@@ -624,7 +624,7 @@ export function Manuscript() {
       {focusMode && <FocusBar />}
       {focusMode && <FocusCounter text={words(sceneWords)} words={stats.words} num={num} />}
       <nav className="sp-scenes ms-scenes" aria-label={m.scenesAria}>
-        <Volumes /><h2 className="sp-box-title">{m.scenesTitle}</h2>
+        <h2 className="sp-box-title">{m.scenesTitle}</h2>
         <p className="ms-total">{words(stats.words)}</p>
         <p className="ms-drag-hint">{m.sceneHint}</p>
         {narrators.length > 0 && (

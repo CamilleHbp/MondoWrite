@@ -1,5 +1,4 @@
-import { volumeTitle } from "../novelSeries";
-import { volumeTexts } from "../novelSeries";
+import { volumeTitle, volumeEntries, volumeTexts } from "../novelSeries";
 // Bouton « Exporter » : le scénario (PDF au format standard, Fountain, Final Draft) ou le manuscrit
 // d'un roman (PDF, Word, EPUB, Markdown), la bible du projet dans les deux cas, et le canevas (PNG, PDF
 // standard ou grand format, Word, Markdown).
@@ -55,6 +54,8 @@ class CompileReported extends Error {}
 export function ExportMenu() {
   const { t: all, kind } = useVocab();
   const t = all.screenplay.export;
+  const series=useCosmos(s=>s.plan.series);
+  const scope=useCosmos(s=>s.bookScope);
   const x = useT().exports;
   const [open, setOpen] = useState(false);
   // Barre des menus du Mac (Fichier > Exporter…).
@@ -110,8 +111,16 @@ export function ExportMenu() {
     }
   };
 
+  const scopedSource = () => {
+    const state = useCosmos.getState();
+    if (!state.bookScope) return state.plan.series ? {...state,nodes:state.nodes.filter(n=>n.data.type!=="scene"),pitch:{}} : state;
+    const ids = volumeEntries(state.plan, state.nodes, state.edges, state.manuscript);
+    return { ...state, title: volumeTitle(state), nodes: state.nodes.filter(n=>ids.has(n.id)),
+      frames: state.frames.filter(f=>f.data.book===state.bookScope),
+      edges: state.edges.filter(e=>ids.has(e.source) && ids.has(e.target)) };
+  };
   const info = () => {
-    const { title } = useCosmos.getState();
+    const { title } = scopedSource();
     const { lang, author } = useSettings.getState();
     return { title: title.trim() || all.home.untitled, author: author.trim(), lang };
   };
@@ -154,20 +163,20 @@ export function ExportMenu() {
   };
 
   const canvasFile = (format: CanvasFormat) => async (): Promise<ExportedFile | null> => {
-    const { nodes, title } = useCosmos.getState();
+    const { nodes, title } = scopedSource();
     if (nodes.length === 0) return null;
     const base = info();
     const name = fmt(x.canvasName, { title: base.title });
     const file = (extension: string, mime: string, data: Uint8Array): ExportedFile => ({ name: `${fileName(name, "mondowrite")}.${extension}`, extension, mime, data });
     if (format === "docx" || format === "md") {
-      const doc = canvasOf(useCosmos.getState(), ctx());
+      const doc = canvasOf(scopedSource(), ctx());
       const full = format === "md" ? doc : await (await import("../export/images")).withImages(doc, (n) => storage.mediaUrl(n));
       return exportDocument(full, format, { name, paper: useCosmos.getState().paper, contents: x.contents });
     }
     // Image : on dessine le canevas tel qu'il est affiché, sans sélection ni poignées.
     useCosmos.getState().clearSelection();
     const viewport = await canvasViewport();
-    const measured = useCosmos.getState();
+    const measured = scopedSource();
     const bounds = canvasBounds([...boxes(measured.nodes), ...measured.frames.map(frameBox)]);
     if (!viewport || !bounds) return null;
     const image = await import("../export/canvasImage");
@@ -180,7 +189,7 @@ export function ExportMenu() {
   // Téléphone : la Bible entière, comme la bible de travail (toutes les rubriques, masquées comprises), sans fenêtre.
   const bibleFile = (format: DocFormat) => async (): Promise<ExportedFile | null> => {
     const { lang, author, bibleSections } = useSettings.getState();
-    const doc = bibleOf(useCosmos.getState(), { t: all, lang, author }, bibleOrder({ ...bibleSections, hidden: [] }));
+    const doc = bibleOf(scopedSource(), { t: all, lang, author }, bibleOrder({ ...bibleSections, hidden: [] }));
     if (doc.chapters.length === 0) return null;
     const full = format === "md" ? doc : await (await import("../export/images")).withImages(doc, (n) => storage.mediaUrl(n));
     return exportDocument(full, format, { name: fmt(x.bibleName, { title: info().title }), paper: useCosmos.getState().paper, contents: x.contents });
@@ -284,7 +293,9 @@ export function ExportMenu() {
       </button>
       {open && (
         <div className="settings-panel export-panel" id={panelId} role="group" aria-label={t.menuAria}>
-          {groups.map((group) => (
+          {series && <label>{all.volumes.book} <select aria-label={all.volumes.book} value={scope ?? ""} onChange={e=>useCosmos.getState().selectVolume(e.target.value)}>
+            <option value="" disabled>{all.volumes.series}</option>{series.books.map(b=><option key={b.id} value={b.id}>{b.title}</option>)}</select></label>}
+          {groups.filter(group=>!series || scope || group.title===x.project || group.title===x.bible).map((group) => (
             <div key={group.title} className="export-group" role="group" aria-label={group.title}>
               <span className="eyebrow">{group.title}</span>
               {group.items.map((item) => (

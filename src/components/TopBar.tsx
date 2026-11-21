@@ -1,3 +1,4 @@
+import { ScopeControl } from "./SeriesWorkspace";
 import { useEffect, useRef, useState } from "react";
 import { useCosmos, type View } from "../store";
 import { BrandMark, Wordmark } from "./BrandMark";
@@ -43,14 +44,16 @@ export function TopBar() {
   const status = useCosmos((s) => s.status);
   const save = useCosmos((s) => s.save);
   const closeProject = useCosmos((s) => s.closeProject);
+  const series = useCosmos(s => s.kind === "roman" ? s.plan.series : undefined);
   const title = useCosmos((s) => s.title);
   const setTitle = useCosmos((s) => s.setTitle);
+  const scope=useCosmos(s=>s.bookScope);
   const phone = usePhone();
   const current = shownView(view, phone);
   // « Juste écrire » (discussion #61) : seule la vue d'écriture (et celle où l'on est), « Toutes les vues » pour le reste.
   const writerMode = useSettings((s) => s.writing.writerMode);
   const [allViews, setAllViews] = useState(false);
-  const shownViews = writerMode && !allViews ? VIEWS.filter((v) => v === "manuscrit" || v === current) : VIEWS;
+  const shownViews = writerMode && !allViews && !series ? VIEWS.filter((v) => v === "manuscrit" || v === current) : VIEWS;
 
   // Téléphone : les actions se rangent derrière « ⋯ » ; les vues passent en barre d'onglets en bas (CSS).
   const [more, setMore] = useState(false);
@@ -85,7 +88,7 @@ export function TopBar() {
             gardent leur place au centre, même sur un iPad en paysage. */}
         <span className="brand-text">
           <Wordmark className="brand-name" />
-          <input
+          {series ? <ScopeControl series={series}/> : <input
             className="brand-project"
             type="text"
             value={title}
@@ -98,7 +101,7 @@ export function TopBar() {
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur();
             }}
-          />
+          />}
         </span>
       </div>
 
@@ -150,9 +153,7 @@ export function TopBar() {
         </button>
         {/* Trois groupes (règles d'Apple pour une barre d'outils) : produire, retrouver, régler. */}
         <div className="tb-group">
-          <AssistantBadge />
-          <AtelierBadge />
-          <AiMenu />
+          {(!series || scope) && <><AssistantBadge /><AtelierBadge /><AiMenu /></>}
           <ExportMenu />
         </div>
         <div className="tb-group">

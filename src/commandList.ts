@@ -54,7 +54,8 @@ export interface AppCommandItem {
 
 const inProject = (c: CommandContext) => c.screen === "project";
 const atHome = (c: CommandContext) => c.screen === "home";
-const writing = (c: CommandContext) => c.screen === "project" && c.view === "manuscrit";
+const draftAvailable = () => !useCosmos.getState().plan.series || !!useCosmos.getState().bookScope;
+const writing = (c: CommandContext) => c.screen === "project" && c.view === "manuscrit" && draftAvailable();
 const onCanvas = (c: CommandContext) => c.screen === "project" && c.view === "toile";
 const desktop = () => isTauri() && !isMobileOS();
 const s = () => useCosmos.getState();
@@ -85,7 +86,7 @@ export const COMMANDS: AppCommandItem[] = [
   { id: "export", group: "file", label: (t) => t.appMenu.exportMenu, enabled: inProject, run: () => sendCommand("export") },
   // Exports qui ont leur fenêtre : directement depuis la palette (le menu passe par « Exporter… »).
   { id: "export-script-pdf", group: "file", menu: false, label: (t) => t.palette.items.scriptPdf, enabled: (c) => inProject(c) && c.kind === "scenario", run: () => s().setDialog("scriptPdf") },
-  { id: "export-paperback", group: "file", menu: false, label: (t) => t.palette.items.paperback, enabled: (c) => inProject(c) && c.kind === "roman", run: () => s().setDialog("paperback") },
+  { id: "export-paperback", group: "file", menu: false, label: (t) => t.palette.items.paperback, enabled: (c) => inProject(c) && c.kind === "roman" && draftAvailable(), run: () => s().setDialog("paperback") },
   { id: "export-bible", group: "file", menu: false, label: (t) => t.palette.items.bible, enabled: inProject, run: () => s().setDialog("bibleExport") },
   { id: "trash", group: "file", label: (t) => t.appMenu.trash, enabled: inProject, run: () => s().setDialog("trash") },
   // Sauvegardes hors du projet (#14, #15) : celles du projet ouvert, ou de tous les projets depuis l'accueil.
@@ -155,7 +156,7 @@ export const COMMANDS: AppCommandItem[] = [
   },
   // Fenêtre Statistiques : personnages, lieux, qui croise qui (tout le projet, depuis n'importe quelle vue).
   // Roman interactif (lot 3) : lire l'histoire comme le lecteur, depuis le début.
-  { id: "play-story", group: "view", label: (t) => t.interactive.play.open, enabled: (c) => inProject(c) && c.kind !== "scenario" && showsInteractive(s().metaKeep, useSettings.getState().experimental), run: () => openPlay() },
+  { id: "play-story", group: "view", label: (t) => t.interactive.play.open, enabled: (c) => inProject(c) && c.kind !== "scenario" && draftAvailable() && showsInteractive(s().metaKeep, useSettings.getState().experimental), run: () => openPlay() },
   { id: "stats", group: "view", label: (t) => t.appMenu.stats, enabled: inProject, run: () => s().setDialog("stats") },
   // Zoom de la page du manuscrit ou du scénario : seulement dans cette vue (raccourcis rejoués).
   { id: "zoom-in", group: "view", label: (t) => t.appMenu.zoomIn, accelerator: "CmdOrCtrl+=", enabled: writing, run: () => replayShortcut("=", "Equal") },

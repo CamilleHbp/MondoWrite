@@ -1,3 +1,4 @@
+import { rememberSeries, seriesLocation } from "./seriesLocation";
 // État global de MondoWrite (Zustand).
 // Les nœuds React Flow portent directement les CardData : la toile EST le modèle.
 
@@ -14,7 +15,7 @@ import { isPhone } from "./components/usePhone";
 import { fileCards } from "./inbox";
 import { isTouch } from "./platform";
 import { exitsOf as storyExits } from "./interactive/verify";
-import { moveToVolume, volumeTexts, outsideBook, switchBook, startSeries } from "./novelSeries";
+import { includeBookEntry, volumeEntries, moveToVolume, volumeTexts, outsideBook, switchBook, startSeries } from "./novelSeries";
 import { flushPendingEdits } from "./pendingEdits";
 import { vracCardHeight, vracGrid, type VracCard, type VracLink } from "./ai/vrac";
 import { setWireField, wireFicheOf, type WireField } from "./wires";
@@ -131,6 +132,7 @@ export interface CosmosState {
   /** Plan d'un roman : gabarit choisi et scènes rangées dans ses cases (voir plan.ts). */
   plan: Plan;
   changeNovelPlan: (update: (p: Plan) => Plan) => void;
+  bookScope: string | null;
   selectVolume: (id: string) => void;
   moveToBook: (ids: string[], destination: string, chapter?: string) => string | null;
   setPlanTemplate: (template: PlanTemplate) => void;
@@ -1047,9 +1049,12 @@ export const useCosmos = create<CosmosState>((set, get) => {
     const { nodes, edges, plan, kind } = get();
     // Les cadres verrouillés restent tels quels, avec les cartes dont le centre est dedans. Tout le reste
     // se range, Liens, Images et Documents compris, sous ces cadres pour ne jamais les chevaucher.
-    const locked = get().frames.filter((f) => f.data.locked).map(frameBox);
-    const held = heldCardIds(nodes, get().frames);
-    const arranged = nodes.filter((n) => !held.has(n.id));
+    const scope = kind === "roman" && plan.series ? get().bookScope : null;
+    const visible = scope ? volumeEntries(plan, nodes, edges, get().manuscript) : null;
+    const frames = get().frames.filter(f => !scope || f.data.book === scope);
+    const locked = frames.filter(f => f.data.locked).map(frameBox);
+    const held = heldCardIds(nodes, frames);
+    const arranged = nodes.filter(n => !held.has(n.id) && (!visible || visible.has(n.id)));
     const t = getT();
     const types = kind === "scenario" ? { ...t.types, ...t.scenario.types } : t.types;
     const sizes = boxes(arranged);
@@ -1076,7 +1081,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
               outside,
             };
           })()
-        : kind === "roman" && plan.series ? {
+        : kind === "roman" && plan.series && !scope ? {
           seasons: [{ id: null, title: "", episodes: plan.series.books.map((b, i) => {
             const local = switchBook(plan, b.id, planScenes(nodes));
             const groups = arrange(local, planScenes(arranged));
@@ -1095,7 +1100,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
     // Roman interactif : les scènes ne se lisent pas dans l'ordre du livre. Elles se rangent en arbre selon les
     // choix (le départ en haut), sans cadre ni fil « puis » ; les autres cartes, dans leurs cadres, en dessous.
     const tree = (() => {
-      if (kind === "scenario" || plan.series || !showsInteractive(get().metaKeep, useSettings.getState().experimental)) return null;
+      if (kind === "scenario" || (plan.series && !scope) || !showsInteractive(get().metaKeep, useSettings.getState().experimental)) return null;
       const free = new Set(arranged.map((n) => n.id));
       const scenes = interactiveScenes(nodes, plan).filter((sc) => free.has(sc.id));
       const sizeOf = new Map(arranged.map((n, i) => [n.id, sizes[i]]));
@@ -1147,7 +1152,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
         return at ? { ...n, position: at, selected: false } : n;
       }),
       // Les cadres d'avant se vidaient : ils sont remplacés par ceux du rangement, sauf les cadres verrouillés.
-      frames: [...get().frames.filter((f) => f.data.locked).map((f) => ({ ...f, selected: false })), ...result.frames.map(f => toFrameNode(kind === "roman" && plan.series && f.episode ? { ...f, book: f.episode, episode: undefined } : f))],
+      frames: [...get().frames.filter((f) => f.data.locked || (scope && f.data.book !== scope)).map((f) => ({ ...f, selected: false })), ...result.frames.map(f => toFrameNode(scope ? {...f,book:scope} : kind === "roman" && plan.series && f.episode ? { ...f, book: f.episode, episode: undefined } : f))],
       edges: nextEdges,
     });
     touch();
@@ -1214,7 +1219,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
    */
   const dropIntoBeats = (ids: Set<string>) => {
     const { nodes, frames, kind, screenplay, plan } = get();
-    const beatFrames = frames.filter((f) => (f.data.book || f.data.beat || (kind === "scenario" && f.data.episode)) && !f.data.locked);
+    const beatFrames = frames.filter((f) => (!get().bookScope || f.data.book === get().bookScope) && (f.data.book || f.data.beat || (kind === "scenario" && f.data.episode)) && !f.data.locked);
     if (beatFrames.length === 0) return;
     const inEpisodes = screenplay ? episodeScenes(screenplay.elements).byEpisode : new Map<string, string[]>();
     const held = heldCardIds(nodes, frames);
@@ -1277,6 +1282,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
     if (!target) return;
     lastTag = "";
     const here = snapshotOf(get());
+    const scope = get().bookScope;
     const titles = new Map(target.nodes.map((n) => [n.id, n.data.title]));
     // Les blocs de choix reviennent tels qu'à l'étape, déjà justes pour ses titres : on ne les renomme pas.
     followSceneNames = false;
@@ -1289,6 +1295,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
       screenplay: target.screenplay,
       ...(target.bookSettings && target.plan.series?.active !== plan.series?.active ? target.bookSettings : {}),
       ...(target.projectTitle !== undefined && target.plan.series?.title !== plan.series?.title ? { title: target.projectTitle } : {}),
+      bookScope: scope && target.plan.series?.books.some(b => b.id === scope) ? scope : null,
       plan: target.plan,
       trash: target.trash,
       // Le manuscrit n'est pas remis par l'annulation : ses mentions reprennent le titre des cartes de l'étape.
@@ -1298,6 +1305,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
       trashNotice: null,
       pendingFocusId: null,
     });
+    if (get().bookScope && get().plan.series?.active !== scope) get().selectVolume(scope!);
     followSceneNames = true;
     touch();
   };
@@ -1335,7 +1343,8 @@ export const useCosmos = create<CosmosState>((set, get) => {
       scrivenerReport: null,
       storyReport: null,
       screen: "project",
-      view: firstView(),
+      bookScope: null,
+      view: state.plan.series ? "plan" : firstView(),
       focusId: null,
       openFailed: false,
       openError: null,
@@ -1373,6 +1382,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
       awaitingLayout: awaitingLayout.filter((l) => !present.has(l.id)),
       // Scénario non repris : on garde l'objet à l'écran, et ce qu'il reste à enregistrer. Série : l'épisode ouvert
       // le reste.
+      bookScope: state.plan.series && get().bookScope ? state.plan.series.active : null,
       ...(SCREENPLAY_FILE in patch ? { currentEpisode: resolveEpisode(state.screenplay, currentEpisode) } : { screenplay, savedScreenplay, currentEpisode }),
       lastFiles: patchFiles(lastFiles, patch),
     });
@@ -1613,7 +1623,8 @@ export const useCosmos = create<CosmosState>((set, get) => {
       scrivenerReport: report,
       storyReport: story,
       screen: "project",
-      view: "manuscrit",
+      bookScope: null,
+      view: state.plan.series ? "plan" : "manuscrit",
       focusId: null,
       status: "modifie",
     });
@@ -1868,6 +1879,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
       // Scénario : une Scène qui arrive avec son en-tête entre aussitôt dans le texte, comme une carte titrée.
       const { screenplay, kind } = get();
       set({
+        plan: type === "scene" ? get().plan : includeBookEntry(get().plan, get().bookScope, card.id),
         nodes: [...get().nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), { ...toNode(card, spot.x, spot.y), selected: true }],
         ...(type === "scene" && title.trim() && kind === "scenario" && screenplay ? { screenplay: inEpisode(screenplay, get().currentEpisode, (sp) => appendScene(sp, { id: card.id, title })) } : {}),
       });
@@ -2169,6 +2181,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
       let edges = get().edges;
       for (const l of links) edges = addEdge({ id: newId(), source: l.source, target: l.target, sourceHandle: null, targetHandle: null, label: l.label ?? "", type: "floating", ...(l.fiche ? { data: { fiche: l.fiche } } : {}) }, edges);
       set({
+        plan: cards.reduce((plan,c) => c.data.type === "scene" ? plan : includeBookEntry(plan, get().bookScope, c.data.id), get().plan),
         nodes: [...get().nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), ...cards.map((c) => ({ ...toNode(c.data, c.x, c.y, c.width), selected: true }))],
         edges,
         manuscript,
@@ -2261,7 +2274,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
     openInManuscript: (id, needle, caret, nth) => {
       // Série : la scène est dans un autre épisode, on ouvre d'abord celui-ci.
       const owner = get().plan.series?.books.find(b => b.scenes.includes(id));
-      if (owner && get().kind === "roman") get().selectVolume(owner.id);
+      if (get().kind === "roman" && get().plan.series) get().selectVolume(owner?.id ?? get().plan.series!.active);
       const full = get().screenplay;
       const episode = id.startsWith(SCENE_AT) ? episodeAt(full, Number(id.slice(SCENE_AT.length))) : episodeOfCard(full, id);
       set({ view: "manuscrit", manuscriptTarget: id, manuscriptNeedle: needle || null, manuscriptCaret: caret ?? null, manuscriptNth: nth ?? null, ...(episode ? { currentEpisode: episode } : {}) });
@@ -2304,6 +2317,11 @@ export const useCosmos = create<CosmosState>((set, get) => {
       const before = manuscript[id] ?? "";
       const next = isBlank(html) ? "" : html;
       if (before === next) return;
+      const scope=get().bookScope;
+      if (scope) {
+        const caret=currentCaret();
+        rememberSeries({lastBook:scope,carets:{...seriesLocation().carets,[scope]:caret?.scene===id ? caret : {scene:id}}});
+      }
       if (next) manuscript[id] = next;
       else delete manuscript[id];
       // Mots écrits aujourd'hui : le total du jour suit, à partir de la différence dans cette scène.
@@ -2548,26 +2566,30 @@ export const useCosmos = create<CosmosState>((set, get) => {
       touch();
       return null;
     },
+    bookScope: null,
     selectVolume: (id) => {
       flushPendingEdits();
       const s = get();
       const ids = [...s.nodes.filter(n => n.data.type === "scene").map(n => n.id), ...s.trash.map(c => c.id), ...s.awaitingLayout.map(n => n.id)];
       let plan = switchBook(s.plan, id, ids);
-      if (plan === s.plan) return;
+      if (!s.plan.series?.books.some(b => b.id === id)) return;
+      if (!s.bookScope) rememberSeries({ overview: s.view, focus: id, scroll: typeof document === "undefined" ? 0 : document.querySelector(".sequencer, .bible")?.scrollTop ?? 0 });
+      if (plan === s.plan) { set({ bookScope: id }); return; }
       const series = plan.series!;
       const target = series.books.find(b => b.id === id)?.settings ?? {};
       const metaKeep = { ...s.metaKeep };
+      const previousPositions = Object.fromEntries(s.nodes.filter(n => n.data.type !== "scene").map(n => [n.id,n.position]));
+      const nextPositions = series.books.find(b => b.id === id)?.positions;
+      const nodes = s.nodes.map(n => nextPositions?.[n.id] || n.selected ? {...n,selected:false,position:nextPositions?.[n.id] ?? n.position} : n);
       const settings: Record<string, unknown> = { goals: s.goals, progress: s.progress, print: s.print, pitch: s.pitch, coverDesign: s.coverDesign };
       for (const key of ["interactive", "sections", "sectionLocks", "storyFacts"]) {
         if (key in metaKeep) settings[key] = metaKeep[key];
         if (key in target) metaKeep[key] = target[key];
         else delete metaKeep[key];
       }
-      plan = { ...plan, series: { ...series, books: series.books.map(b => b.id === s.plan.series!.active ? { ...b, settings } : b) } };
-      record();
-      set({ plan, metaKeep, pitch: readPitch(target.pitch), print: cleanPrint(target.print), coverDesign: cleanCoverDesign(target.coverDesign),
+      plan = { ...plan, series: { ...series, books: series.books.map(b => b.id === s.plan.series!.active ? { ...b, settings, positions: previousPositions } : b) } };
+      set({ bookScope: id, nodes, plan, metaKeep, pitch: readPitch(target.pitch), print: cleanPrint(target.print), coverDesign: cleanCoverDesign(target.coverDesign),
         goals: readGoals(target.goals), progress: readProgress(target.progress), sessionStart: null, manuscriptTarget: null });
-      touch();
     },
     setPlanTemplate: (template) => {
       const plan = setTemplate(get().plan, template);
@@ -2944,13 +2966,16 @@ export const useCosmos = create<CosmosState>((set, get) => {
       touch();
     },
     refitStory: () => {
+      if (get().bookScope) return; // Measuring a scoped canvas is navigation, not an arrangement command.
       const { nodes, frames } = get();
-      const story = frames.filter((f) => !f.data.locked && (f.data.season || f.data.episode || f.data.beat)).map(frameBox);
+      const scope=get().bookScope;
+      const outside=outsideBook(get().plan);
+      const story = frames.filter((f) => (!scope || f.data.book===scope) && !f.data.locked && (f.data.season || f.data.episode || f.data.beat)).map(frameBox);
       if (story.length === 0) return;
       const sizes = boxes(nodes);
       // Les scènes seulement : elles sont rangées par le récit ; une autre carte posée à cheval sur un cadre est à l'auteur.
       const spills = sizes.some((b, i) => {
-        if (nodes[i].data.type !== "scene") return false;
+        if (nodes[i].data.type !== "scene" || outside.has(nodes[i].id)) return false;
         const cx = b.x + b.width / 2;
         // Le plus petit cadre du récit qui contient le haut de la carte (son centre peut déjà en être sorti) :
         // celui où elle est rangée.
@@ -2961,6 +2986,11 @@ export const useCosmos = create<CosmosState>((set, get) => {
       if (spills) arrangeCanvas(() => {});
     },
     organizeCanvas: () => {
+      if (get().plan.series && !get().bookScope) {
+        get().changeNovelPlan(p=>({...p,series:{...p.series!,positions:undefined}}));
+        set({view:"toile"});
+        return;
+      }
       // « Organiser » range tout le projet : le filtre et la mise en avant s'effacent d'abord.
       set({ filter: NO_FILTER, spotlightId: null });
       // Une seule étape d'historique : Ctrl/Cmd+Z remet le canevas tel qu'il était.
@@ -3149,6 +3179,9 @@ export const useCosmos = create<CosmosState>((set, get) => {
       restore("future");
     },
     revealCard: (id) => {
+      const state=get();
+      if (state.plan.series && state.nodes.find(n=>n.id===id)?.data.type==="scene")
+        state.selectVolume(state.plan.series.books.find(b=>b.scenes.includes(id))?.id ?? state.plan.series.active);
       if (!get().nodes.some((n) => n.id === id)) return;
       // Carte masquée par le filtre du canevas : le filtre est retiré, sinon la vue se centrerait sur du vide.
       const hidden = hiddenCards(get().nodes.map((n) => n.data), get().edges, get().filter).has(id);
@@ -3188,6 +3221,14 @@ export const useCosmos = create<CosmosState>((set, get) => {
         if (!files || !openFiles(files)) set({ homeNotice: true });
         else {
           // Déjà ouvert sur un autre appareil : lecture seule, avec un bandeau pour reprendre la main.
+          if (get().plan.series) {
+            const location = seriesLocation();
+            if (location.scope && get().plan.series?.books.some(b => b.id === location.scope)) {
+              get().selectVolume(location.scope);
+              rememberSeries(location);
+            }
+            if (location.view) get().setView(location.view);
+          }
           const other = await otherHolder();
           if (other) set({ lockedBy: other });
           else {
@@ -3207,7 +3248,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
     resumeProject: async (id) => {
       const spot = readSpot(id);
       await get().openProject(id);
-      if (!spot || get().screen !== "project" || storage.current?.() !== id) return;
+      if (get().plan.series || !spot || get().screen !== "project" || storage.current?.() !== id) return;
       const st = get();
       // La scène gardée existe-t-elle encore (supprimée, ou texte changé sur un autre appareil) ?
       const scene = spot.scene;
@@ -3246,7 +3287,8 @@ export const useCosmos = create<CosmosState>((set, get) => {
         scrivenerReport: null,
         storyReport: null,
         screen: "project",
-        view: firstView(),
+        bookScope: null,
+        view: state.plan.series ? "plan" : firstView(),
         focusId: null,
         openFailed: false,
         openError: null,
@@ -3459,6 +3501,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
     frames: [],
     addFrame: (center) => {
       record();
+      const scope = get().bookScope;
       const chosen = get().nodes.filter((n) => n.selected);
       let frame: Frame;
       if (chosen.length > 0) {
@@ -3474,6 +3517,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
         const spot = placeFrame({ x: Math.round(center.x - FRAME_SIZE.width / 2), y: Math.round(center.y - FRAME_SIZE.height / 2) }, occupied(), FRAME_SIZE);
         frame = { id: newId(), title: "", x: spot.x, y: spot.y, ...FRAME_SIZE };
       }
+      if (scope) frame.book = scope;
       set({ frames: [...get().frames.map((f) => ({ ...f, selected: false })), { ...toFrameNode(frame), selected: true }] });
       touch();
       return frame.id;
@@ -3502,7 +3546,10 @@ export const useCosmos = create<CosmosState>((set, get) => {
     },
     onNodesChange: (incoming) => {
       // Une carte tenue par un cadre verrouillé ne bouge pas (glisser, sélection multiple, flèches du clavier).
-      const held = heldCardIds(get().nodes, get().frames);
+      const state=get();
+      const visible=state.bookScope ? volumeEntries(state.plan,state.nodes,state.edges,state.manuscript) : null;
+      const scopedFrames=state.frames.filter(f=>!state.bookScope || f.data.book===state.bookScope);
+      const held = heldCardIds(state.nodes, scopedFrames);
       const changes = held.size > 0 ? incoming.filter((c) => !(c.type === "position" && held.has(c.id))) : incoming;
       if (changes.length === 0) return;
       const frameIds = new Set(get().frames.map((f) => f.id));
@@ -3532,7 +3579,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
       // Un cadre qu'on déplace emmène les cartes qu'il contient (leur centre est dedans).
       // Pas quand on le redimensionne par le haut ou la gauche : sa position change, pas son contenu.
       let nodes = get().nodes;
-      const frames = get().frames;
+      const frames = scopedFrames;
       const carried = new Map<string, { x: number; y: number }>();
       for (const change of frameChanges) {
         if (change.type !== "position" || !change.position) continue;
@@ -3544,6 +3591,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
         const dy = change.position.y - box.y;
         if (dx === 0 && dy === 0) continue;
         nodes = nodes.map((n) => {
+          if (visible && !visible.has(n.id)) return n;
           const [card] = boxes([n]);
           const cx = card.x + card.width / 2;
           const cy = card.y + card.height / 2;
@@ -3585,7 +3633,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
           return { ...rest, style: { ...n.style, width: clampCardWidth(width) } };
         });
       }
-      let nextFrames = frameChanges.length > 0 ? applyNodeChanges(frameChanges, frames) : frames;
+      let nextFrames = frameChanges.length > 0 ? applyNodeChanges(frameChanges, state.frames) : state.frames;
       if (carried.size > 0) nextFrames = nextFrames.map((f) => (carried.has(f.id) ? { ...f, position: carried.get(f.id)! } : f));
       set({ nodes: nextNodes, frames: nextFrames, screenplay, ...(trashed ? { edges: trashed.edges, trash: trashed.trash, trashNotice: trashed.trashNotice, manuscript: trashed.manuscript, spotlightId: trashed.spotlightId } : {}) });
       if (changed) touch();
@@ -3628,6 +3676,7 @@ export const useCosmos = create<CosmosState>((set, get) => {
       const phone = isPhone();
       set({
         nodes: [...get().nodes.map((n) => ({ ...n, selected: false })), node],
+        plan: type === "scene" ? get().plan : includeBookEntry(get().plan, get().bookScope, card.id),
         pendingFocusId: phone ? null : card.id,
         ...(phone ? { expandedId: card.id, dialog: "card" as const, cardMenu: null } : {}),
       });
@@ -3678,7 +3727,8 @@ export const useCosmos = create<CosmosState>((set, get) => {
         if (edges.some((e) => (e.source === source && e.target === target) || (e.source === target && e.target === source))) continue;
         edges = addEdge({ id: newId(), source, target, sourceHandle: null, targetHandle: null, label: l.label.trim().slice(0, 60), type: "floating" }, edges);
       }
-      set({ nodes: [...get().nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), ...made], edges });
+      const plan = made.reduce((p,n) => n.data.type === "scene" ? p : includeBookEntry(p,get().bookScope,n.id),get().plan);
+      set({ nodes: [...get().nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), ...made], edges, plan });
       for (const scene of scenes) get().updateCard(scene.id, { title: scene.title, html: scene.html });
       touch();
       return made.map((n) => n.id);
@@ -3687,7 +3737,8 @@ export const useCosmos = create<CosmosState>((set, get) => {
       record();
       const card: CardData = { id: newId(), type, title, html: "" };
       const spot = firstFreeCell(occupied());
-      set({ nodes: [...get().nodes, toNode(card, spot.x, spot.y)] });
+      const { plan, bookScope, nodes } = get();
+      set({ nodes: [...nodes, toNode(card, spot.x, spot.y)], plan: type === "scene" ? plan : includeBookEntry(plan, bookScope, card.id) });
       touch();
       return card.id;
     },
@@ -3921,7 +3972,11 @@ export const useCosmos = create<CosmosState>((set, get) => {
     },
 
     // Quitter la Bible autrement que par « Retour au manuscrit » oublie le retour proposé.
-    setView: (view, focusId = null) => set({ view, focusId, ...(view === "bible" ? {} : { bibleReturn: null }) }),
+    setView: (view, focusId = null) => {
+      flushPendingEdits();
+      const scope=get().bookScope;
+      const caret=scope && view==="manuscrit" ? seriesLocation().carets?.[scope] : null;
+      set({ view, focusId, ...(caret?.scene && !outsideBook(get().plan).has(caret.scene) && get().nodes.some(n=>n.id===caret.scene) ? {manuscriptTarget:caret.scene,manuscriptCaret:{offset:caret.offset ?? 0}} : {}), ...(view === "bible" ? {} : { bibleReturn: null }) }); },
 
     load: async () => {
       let files: FileMap | null = null;
@@ -3959,7 +4014,8 @@ export const useCosmos = create<CosmosState>((set, get) => {
         storyReport: null,
         loaded: true,
         screen: "project",
-        view: firstView(),
+        bookScope: null,
+        view: state.plan.series ? "plan" : firstView(),
         focusId: null,
         openFailed: false,
         openError: null,

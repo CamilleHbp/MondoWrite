@@ -131,19 +131,34 @@ describe("sauvegarder et rouvrir", () => {
     state().selectVolume("two");
     const second = state().addTitledCard("scene", "Two");
     state().setManuscriptText(second, "<p>South</p>");
+    state().changeNovelPlan(plan => ({ ...plan, series: { ...plan.series!,
+      books: [...plan.series!.books].reverse(),
+      arc: { template: "troisActes", beats: { a_setup: ["two", "arrival"] } },
+      milestones: [{ id: "arrival", title: "The landing", notes: "After the storm", target: second }]
+    }}));
+    const series = state().plan.series;
+    state().undo();
+    expect(state().plan.series?.milestones).toEqual([]);
+    state().redo();
+    expect(state().plan.series).toEqual(series);
     await state().save();
     const key = backupKey("phare");
     const fake = fakeBackups(key);
     (storage as { backups?: BackupStore }).backups = fake.store;
     expect(await state().backupNow()).toBe(true);
-    const [name, data] = [...fake.zips][0];
+    const [name] = [...fake.zips.keys()];
+    const zip = await state().projectZip();
+    expect(zip).toBeTruthy();
     expect(await state().openBackup(key, name)).toBe(true);
     expect(bookOrder(state().nodes, state().plan)).toEqual([second]);
     state().selectVolume("one");
     expect(bookOrder(state().nodes, state().plan)).toEqual([first]);
-    vi.spyOn(storage, "pickFile").mockResolvedValueOnce({ name: "series.zip", data });
+    vi.spyOn(storage, "pickFile").mockResolvedValueOnce({ name: "series.zip", data: zip!.data });
     await state().importFile();
     expect(state().plan.series?.active).toBe("two");
+    expect(state().plan.series?.arc).toEqual(series?.arc);
+    expect(state().plan.series?.milestones).toEqual(series?.milestones);
+    expect(state().plan.series?.books.map(b=>b.id)).toEqual(["two","one"]);
     expect(state().manuscript[first]).toContain("North");
     expect(state().manuscript[second]).toContain("South");
   });
