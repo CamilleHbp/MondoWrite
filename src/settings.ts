@@ -12,7 +12,7 @@ import { detectLang, isLang, type Lang } from "./i18n/langs";
 import { isTauri } from "./platform";
 import { PHOTO_SOURCES, type PhotoSourceId } from "./imageSources";
 import { authorName, cleanProfile, readProfile, type AuthorProfile } from "./profile";
-import { AI_PROVIDERS, PROVIDERS, isAiProvider, type AiConfig, type AiProvider } from "./ai/providers";
+import { AI_PROVIDERS, PROVIDERS, isAiProvider, type AiConfig, type AiProvider } from "./ai/providerConfig";
 import { readMcp, type McpAccess, type McpSettings } from "./mcp";
 import { readExperimental, type ExperimentalSettings } from "./interactive";
 import { readLt, type LtSettings } from "./languagetool/api";
