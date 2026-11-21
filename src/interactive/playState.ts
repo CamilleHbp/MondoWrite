@@ -8,6 +8,7 @@ import type { Pick } from "./playTrail";
 /** Chemin lu : le projet et la scène de départ, puis les choix faits (pour reprendre après une correction). */
 export interface Trail {
   project: string | null;
+  book: string | null;
   from: string | null;
   picks: Pick[];
 }
@@ -23,9 +24,10 @@ export function openPlay(from: string | null = null) {
 
 /** Projet sélectionné (le chemin d'un autre projet n'est jamais repris). */
 export const playProject = (): string | null => storage.current?.() ?? null;
+export const playBook = (): string | null => useCosmos.getState().plan.series?.active ?? null;
 
 /** Chemin à reprendre pour cette lecture, ou null : même projet, même départ, au moins un choix. */
 export function trailFor(from: string | null): Trail | null {
   const trail = usePlay.getState().trail;
-  return trail && trail.picks.length > 0 && trail.from === from && trail.project === playProject() ? trail : null;
+  return trail && trail.picks.length > 0 && trail.from === from && trail.project === playProject() && trail.book === playBook() ? trail : null;
 }

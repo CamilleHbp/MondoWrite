@@ -14,7 +14,7 @@ import { interactiveScenes, interactiveSlugs } from "../interactive/scenes";
 import { readFactLabels, shownValue } from "../interactive/facts";
 import { projectFacts } from "../interactive/projectFacts";
 import { useMediaUrl } from "./useMediaUrl";
-import { playProject, trailFor, usePlay, type Trail } from "../interactive/playState";
+import { playBook, playProject, trailFor, usePlay, type Trail } from "../interactive/playState";
 import { closedChoices, matchPick, type Pick } from "../interactive/playTrail";
 import { condWords } from "../interactive/conditions";
 import { openingWords, pathLine, pathMarkdown, pathNotes, type PathStep } from "../interactive/readingPath";
@@ -95,7 +95,7 @@ export function PlayDialog() {
   // correction propose de les rejouer.
   const picks = useRef<Pick[]>([]);
   const [offer, setOffer] = useState<Trail | null>(() => trailFor(from));
-  const keepTrail = () => usePlay.setState({ trail: { project: playProject(), from, picks: [...picks.current] } });
+  const keepTrail = () => usePlay.setState({ trail: { project: playProject(), book: playBook(), from, picks: [...picks.current] } });
   // Choix fermés (#104) : montrés à l'auteur qui relit, avec leur raison ; réglage de l'appareil.
   const [showClosed, setShowClosed] = useState(() => {
     try {
