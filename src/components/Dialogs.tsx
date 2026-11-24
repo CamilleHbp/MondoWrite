@@ -5,7 +5,8 @@ import { BrandMark, Wordmark } from "./BrandMark";
 import { useEffect, useRef, useState } from "react";
 import { useCosmos } from "../store";
 import { useT } from "../i18n";
-import { SHORTCUT_GROUPS, type ShortcutGroup } from "../shortcuts";
+import { shortcutScore } from "../shortcutSearch";
+import { shortcutKeyName, SHORTCUT_GROUPS, type ShortcutGroup } from "../shortcuts";
 import { isAppleKeyboard, openExternal } from "../platform";
 import { openBugReport } from "../reportBug";
 import { canRateInStore, openStoreReviewPage } from "../storeReview";
@@ -30,11 +31,12 @@ import { BackupsDialog } from "./BackupsDialog";
 import { SynonymsPanel } from "./SynonymsPanel";
 import { NamePicker } from "./NamePicker";
 import { RevisionPanel } from "./RevisionPanel";
+import { WebPagePanel } from "./WebPagePanel";
 
 const REPO = "https://github.com/sebastienpiconnier/MondoWrite";
 
 // Fenêtres qui ont leur propre bouton de fermeture : pas de « Fermer » en bas.
-const OWN_CLOSE = new Set(["document", "paperback", "scriptPdf", "bibleExport", "profile", "card", "stats", "vrac", "versions"]);
+const OWN_CLOSE = new Set(["document", "paperback", "scriptPdf", "bibleExport", "profile", "card", "stats", "vrac", "versions", "webPage"]);
 function hasCloseButton(dialog: string): boolean {
   return !OWN_CLOSE.has(dialog);
 }
@@ -74,14 +76,11 @@ export function Dialogs() {
   }, [dialog, expanded, setDialog]);
 
   const downOnBackdrop = useRef(false);
-  const apple = isAppleKeyboard();
-  const keyName = (k: string) =>
-    ({ Mod: apple ? "⌘" : "Ctrl", Shift: apple ? "⇧" : t.shortcuts.shift, Alt: apple ? "⌥" : "Alt", Entrée: t.shortcuts.enter, Échap: t.shortcuts.escape, Suppr: t.shortcuts.delete, Glisser: t.shortcuts.drag, Clic: t.shortcuts.click })[k] ?? k;
 
   return (
     <dialog
       ref={ref}
-      className={`app-dialog${dialog === "document" ? " is-document" : dialog === "photos" ? " is-photos" : dialog === "card" ? " is-card" : dialog === "replace" ? " is-replace" : dialog === "paperback" ? " is-replace is-paperback" : dialog === "stats" ? " is-stats" : dialog === "goto" || dialog === "commands" ? " is-goto" : dialog === "synonyms" || dialog === "names" ? " is-replace is-names" : dialog === "scriptPdf" ? " is-stats is-script-pdf" : dialog === "bibleExport" ? " is-stats is-script-pdf is-bible-export" : dialog === "profile" ? " is-replace is-profile" : dialog === "vrac" ? " is-replace is-vrac" : dialog === "versions" ? " is-stats is-versions" : dialog === "backups" ? " is-replace is-backups" : dialog === "revisions" ? " is-replace is-revisions" : dialog === "play" ? " is-play" : ""}`}
+      className={`app-dialog${dialog === "document" ? " is-document" : dialog === "photos" ? " is-photos" : dialog === "card" ? " is-card" : dialog === "replace" ? " is-replace" : dialog === "paperback" ? " is-replace is-paperback" : dialog === "stats" ? " is-stats" : dialog === "goto" || dialog === "commands" ? " is-goto" : dialog === "synonyms" || dialog === "names" ? " is-replace is-names" : dialog === "scriptPdf" ? " is-stats is-script-pdf" : dialog === "bibleExport" ? " is-stats is-script-pdf is-bible-export" : dialog === "profile" ? " is-replace is-profile" : dialog === "vrac" ? " is-replace is-vrac" : dialog === "versions" ? " is-stats is-versions" : dialog === "backups" ? " is-replace is-backups" : dialog === "revisions" ? " is-replace is-revisions" : dialog === "play" ? " is-play" : dialog === "webPage" ? " is-replace is-web-page" : ""}`}
       aria-labelledby="app-dialog-title"
       onClose={() => setDialog(null)}
       // Carte agrandie : un clic à côté de la fenêtre (sur le fond) la ferme. Seulement si le bouton a aussi été
@@ -96,36 +95,14 @@ export function Dialogs() {
       }}
     >
       {dialog === "card" && expanded && <ExpandedCard card={expanded} />}
-      {dialog === "shortcuts" && (
-        <>
-          <h2 id="app-dialog-title">{t.shortcuts.title}</h2>
-          <div className="shortcut-groups">
-            {(Object.keys(SHORTCUT_GROUPS) as ShortcutGroup[]).map((group) => (
-              <section key={group}>
-                <h3>{t.shortcuts.groups[group]}</h3>
-                <dl>
-                  {SHORTCUT_GROUPS[group].map(([item, keys]) => (
-                    <div key={item}>
-                      <dt>{t.shortcuts.items[item]}</dt>
-                      <dd>
-                        {keys.map((k, i) => (
-                          <kbd key={i}>{keyName(k)}</kbd>
-                        ))}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            ))}
-          </div>
-        </>
-      )}
+      {dialog === "shortcuts" && <ShortcutList />}
       {dialog === "trash" && <TrashList />}
       {dialog === "replace" && <ReplacePanel />}
       {dialog === "paperback" && <PaperbackPanel />}
       {dialog === "stats" && <StatsPanel />}
       {dialog === "versions" && <VersionsDialog />}
       {dialog === "play" && <PlayDialog />}
+      {dialog === "webPage" && <WebPagePanel />}
       {dialog === "backups" && <BackupsDialog />}
       {dialog === "goto" && <GoToPanel />}
       {dialog === "commands" && <CommandPalette />}
@@ -198,4 +175,34 @@ export function Dialogs() {
       )}
     </dialog>
   );
+}
+
+function ShortcutList() {
+  const t = useT();
+  const [query, setQuery] = useState("");
+  const apple = isAppleKeyboard();
+  const groups = (Object.keys(SHORTCUT_GROUPS) as ShortcutGroup[]).map(group => {
+    const rows = SHORTCUT_GROUPS[group].map(([item, keys]) => {
+      const displayKeys = keys.map(k => shortcutKeyName(k, apple, t.shortcuts));
+      const score = shortcutScore(query, t.shortcuts.items[item], t.shortcuts.groups[group], [...displayKeys, ...keys], t.shortcuts.shift);
+      return { item, displayKeys, score };
+    }).filter(row => Number.isFinite(row.score)).sort((a, b) => a.score - b.score);
+    return { group, rows };
+  }).filter(({ rows }) => rows.length);
+  return <>
+    <h2 id="app-dialog-title">{t.shortcuts.title}</h2>
+    <input className="goto-input" type="search" autoFocus autoComplete="off" spellCheck={false}
+      aria-label={t.shortcuts.filter} placeholder={t.shortcuts.filter} value={query}
+      onChange={e => setQuery(e.target.value)} />
+    {!groups.length && <p role="status">{t.shortcuts.empty}</p>}
+    <div className="shortcut-groups">
+      {groups.map(({ group, rows }) => <section key={group}>
+        <h3>{t.shortcuts.groups[group]}</h3>
+        <dl>{rows.map(({ item, displayKeys }) => <div key={item}>
+          <dt>{t.shortcuts.items[item]}</dt>
+          <dd>{displayKeys.map((k, i) => <kbd key={i}>{k}</kbd>)}</dd>
+        </div>)}</dl>
+      </section>)}
+    </div>
+  </>;
 }
